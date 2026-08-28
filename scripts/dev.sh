@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Kill any process holding the dev server ports, then start `npm run dev` fresh.
+# Pass --clean to also wipe game-state/ first (starts a brand new game).
 set -euo pipefail
 
 PORTS=(3001 5173)
@@ -12,6 +13,11 @@ for port in "${PORTS[@]}"; do
     kill -9 $pids 2>/dev/null || true
   fi
 done
+
+if [[ "${1:-}" == "--clean" ]]; then
+  echo "Clearing game-state/ (--clean passed)..."
+  rm -f "${REPO_ROOT}/game-state"/*.md "${REPO_ROOT}/game-state/characters"/*.md
+fi
 
 sleep 1
 
