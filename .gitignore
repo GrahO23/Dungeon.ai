@@ -148,3 +148,6 @@ game-state/*
 !game-state/characters/
 game-state/characters/*
 !game-state/characters/.gitkeep
+
+# Dungeon.ai vendored binaries/models (downloaded by scripts/setup-tts.sh)
+vendor/

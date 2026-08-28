@@ -9,7 +9,8 @@ function logPath(gameStateDir) {
 }
 
 export function appendTurn(gameStateDir, { turnNumber, character, playerText, dmText }) {
-  const block = `## Turn ${turnNumber} — ${character}\n**Player:** ${playerText}\n**DM:** ${dmText}\n\n`
+  const playerLine = playerText ? `**Player:** ${playerText}\n` : ''
+  const block = `## Turn ${turnNumber} — ${character}\n${playerLine}**DM:** ${dmText}\n\n`
   appendToFile(logPath(gameStateDir), block)
 }
 

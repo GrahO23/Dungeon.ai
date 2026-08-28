@@ -11,7 +11,8 @@ The full design rationale and build plan live in `/home/graham/.claude/plans/str
 ## Prerequisites
 
 - Node.js 22+
-- [Ollama](https://ollama.ai/) running locally (`http://localhost:11434`) with a general-purpose chat model pulled — e.g. `qwen3:14b` (the current default in `server/src/config.js`). Avoid coder-specialized models (e.g. `qwen2.5-coder`) for the DM role; they narrate poorly compared to general instruction-tuned models.
+- [Ollama](https://ollama.ai/) running locally (`http://localhost:11434`) with a general-purpose chat model pulled — the current default in `server/src/config.js` is `qwen3:8b`. Avoid coder-specialized models (e.g. `qwen2.5-coder`) for the DM role; they narrate poorly compared to general instruction-tuned models.
+- For DM voice: run `bash scripts/setup-tts.sh` once to download the [Piper](https://github.com/rhasspy/piper) TTS binary and a voice model into `vendor/` (gitignored, ~90MB, idempotent — safe to re-run). No Python involved; Piper ships as a standalone binary. Voice is optional — if `vendor/piper/piper` isn't present, `/api/tts` returns 503 and the client just skips playback silently.
 
 ## Commands
 
@@ -45,7 +46,16 @@ Browser (React) <--WS----> Game Engine (turn queue, in-memory state) <--fs--> ga
   - `game-state/characters/<slug>.md` — one file per character (stats, hp, inventory, backstory); `state/characters.js#applyCharacterUpdate` patches these from DM output
   - `game-state/log.md` — append-only transcript, one `## Turn N — <name>` block per turn; never rewritten, only appended. `state/log.js#readRecentTurns` reconstructs a bounded "recent turns" tail from this file (used both for WS sync and for the DM's per-turn context budget — the full log is never resent).
   - This directory is gitignored except for `.gitkeep` placeholders; it's runtime data, not source.
-- **DM/Ollama integration** (`server/src/ollama/dm.js`): currently a stub (Milestone 4) that echoes the action back — real Ollama calls and the structured-output convention (narration + trailing fenced JSON block with optional character/story/scene updates, parsed fail-soft) are Milestone 5, not yet implemented. The function signature (`generateTurnResponse({ character, action, gameStateDir }) => { narration, updates }`) is already the shape the real implementation will fill in, so `turnEngine.js` won't need to change.
+- **DM/Ollama integration** (`server/src/ollama/`): `client.js` is a thin non-streaming wrapper over `POST /api/generate`; `prompts.js` holds the DM system prompt (which defines the output contract below) and per-turn prompt assembly from story/scene/character/recent-log context; `dm.js#generateTurnResponse({ character, action, gameStateDir, scene })` orchestrates build → call → parse → return `{ narration, updates }`. The model is expected to respond with narration prose followed by an optional fenced ` ```json ` block (`characterUpdates`, `sceneUpdate`, `storyNote`, all optional); parsing is fail-soft — a missing or malformed block just means no updates that turn, never a crash. `turnEngine.js` applies `characterUpdates` via `state/characters.js#applyCharacterUpdate`, `storyNote` via `state/story.js#appendStoryNote`, and `sceneUpdate` into `state.md`. If the Ollama call itself throws (model down, network error), the turn does not advance — the server broadcasts `turn:changed` with the *same* index to un-stick every client's "thinking" state, and the acting player can just try again.
+  - Observed latency on this machine: `qwen3:14b` ~15–45s per turn; `qwen3:8b` (current default) ~10–15s with comparable narration quality and reliable structured-update output. `qwen3:14b` remains available via `OLLAMA_MODEL=qwen3:14b` if quality ever needs to be traded back for speed.
+
+## DM voice (Piper TTS)
+
+- `server/src/tts/piper.js#synthesize(text)` spawns the vendored Piper binary (`config.piperBin`, `config.piperVoice`), pipes `text` to stdin, and collects the WAV bytes from stdout — stdout and stderr are kept strictly separate (stderr carries Piper's log lines; mixing them corrupts the WAV).
+- `server/src/routes/tts.js` exposes `POST /api/tts { text }` → `audio/wav` bytes. Stateless and decoupled from the turn engine entirely — `turnEngine.js` and `routes/setup.js` don't know TTS exists. The client calls this on its own after receiving narration text, so a slow or failed synthesis can never slow down or break a turn.
+- `client/src/api/tts.js#speak(text)` POSTs to `/api/tts`, plays the returned audio via a small in-module queue (so the game-start intro and the first turn's narration, which can arrive close together, play sequentially rather than overlapping).
+- `gameStore.jsx` calls `speak()` on every `narration:new` message when `voiceEnabled` (persisted to `localStorage`, default on); the 🔊/🔇 toggle in `Game.jsx` flips it. A TTS failure is caught and logged, never surfaced as a game error.
+- Default voice is `en_GB-alan-medium` (deep British male) — chosen for narrator gravitas. Swap via `PIPER_VOICE` env var (must point at a `.onnx` file with a matching `.onnx.json` alongside it; more voices at [huggingface.co/rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices)).
 
 ## Module map
 
@@ -59,4 +69,6 @@ Browser (React) <--WS----> Game Engine (turn queue, in-memory state) <--fs--> ga
 
 ## Status
 
-Milestones 1–4 (scaffolding, markdown state layer, character creation, turn engine with a stubbed DM) are implemented and verified. Milestone 5 (real Ollama integration) is next — see the plan file for the full remaining build order.
+Milestones 1–5 are implemented and verified, plus a scoped version of Milestone 6: `POST /api/setup/start` (`server/src/routes/setup.js`) now calls `ollama/dm.js#generateGameIntro({ characters })` before flipping `sessionStatus` to `playing`. It reuses the same narration-plus-JSON convention as per-turn responses (`INTRO_SYSTEM_PROMPT`/`buildIntroPrompt` in `ollama/prompts.js`), asking for an opening narration (starting "Welcome, adventurers...") plus `{ premise, mainQuest, scene }`. That seeds `story.md`, sets the initial `state.md` scene, and is logged as a special `## Turn 0 — Dungeon Master` entry (no `**Player:**` line — `state/log.js#appendTurn` omits it when `playerText` is empty) so it shows up in the narration log for every client, including ones that connect later via `sync`.
+
+Not yet built from the original Milestone 6 scope: a full `world.md` (regions/factions/setting detail) — right now the "world" is implicit in the intro narration and `story.md`'s premise, not a separately generated document. Add that if the DM needs a bigger persistent setting to stay consistent over a long game.

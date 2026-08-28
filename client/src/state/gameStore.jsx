@@ -1,8 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useReducer, useRef } from 'react'
 import { connectWebSocket } from '../api/ws.js'
+import { speak } from '../api/tts.js'
 
 const GameContext = createContext(null)
 const STORAGE_KEY = 'dungeonai:myCharacter'
+const VOICE_STORAGE_KEY = 'dungeonai:voiceEnabled'
 
 const initialState = {
   connected: false,
@@ -16,6 +18,7 @@ const initialState = {
   thinking: false,
   lastError: null,
   myCharacter: window.localStorage.getItem(STORAGE_KEY),
+  voiceEnabled: window.localStorage.getItem(VOICE_STORAGE_KEY) !== 'false',
 }
 
 function reducer(state, action) {
@@ -46,6 +49,8 @@ function reducer(state, action) {
       return { ...state, lastError: action.payload.reason, thinking: false }
     case 'claim':
       return { ...state, myCharacter: action.payload }
+    case 'toggleVoice':
+      return { ...state, voiceEnabled: !state.voiceEnabled }
     default:
       return state
   }
@@ -54,9 +59,20 @@ function reducer(state, action) {
 export function GameProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState)
   const wsRef = useRef(null)
+  const voiceEnabledRef = useRef(state.voiceEnabled)
 
   useEffect(() => {
-    const ws = connectWebSocket((msg) => dispatch(msg))
+    voiceEnabledRef.current = state.voiceEnabled
+    window.localStorage.setItem(VOICE_STORAGE_KEY, String(state.voiceEnabled))
+  }, [state.voiceEnabled])
+
+  useEffect(() => {
+    const ws = connectWebSocket((msg) => {
+      dispatch(msg)
+      if (msg.type === 'narration:new' && voiceEnabledRef.current) {
+        speak(msg.payload.dmText)
+      }
+    })
     wsRef.current = ws
     ws.addEventListener('open', () => dispatch({ type: 'connected' }))
     ws.addEventListener('close', () => dispatch({ type: 'disconnected' }))
@@ -68,6 +84,8 @@ export function GameProvider({ children }) {
     dispatch({ type: 'claim', payload: name })
   }, [])
 
+  const toggleVoice = useCallback(() => dispatch({ type: 'toggleVoice' }), [])
+
   const sendAction = useCallback(
     (text) => {
       const ws = wsRef.current
@@ -78,7 +96,7 @@ export function GameProvider({ children }) {
   )
 
   return (
-    <GameContext.Provider value={{ ...state, claimCharacter, sendAction }}>
+    <GameContext.Provider value={{ ...state, claimCharacter, sendAction, toggleVoice }}>
       {children}
     </GameContext.Provider>
   )

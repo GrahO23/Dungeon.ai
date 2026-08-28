@@ -32,11 +32,23 @@ export function createTurnEngine({ gameStateDir, hub, gameState }) {
 
     try {
       const turnNumber = state.turnNumber + 1
-      const { narration, updates } = await generateTurnResponse({
-        character,
-        action: text,
-        gameStateDir,
-      })
+      let narration
+      let updates
+      try {
+        ;({ narration, updates } = await generateTurnResponse({
+          character,
+          action: text,
+          gameStateDir,
+          scene: state.currentScene,
+        }))
+      } catch (err) {
+        console.error('DM generation failed:', err)
+        // Un-stick every client's "thinking" state without advancing the turn,
+        // so the same player can simply try again.
+        hub.broadcast('turn:changed', { currentTurnIndex: state.currentTurnIndex, character })
+        reject(ws, 'The DM had trouble responding. Please try again.')
+        return
+      }
 
       appendTurn(gameStateDir, { turnNumber, character, playerText: text, dmText: narration })
 

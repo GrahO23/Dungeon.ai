@@ -4,6 +4,7 @@ import { config } from './config.js'
 import { pingRouter } from './routes/ping.js'
 import { createCharactersRouter } from './routes/characters.js'
 import { createSetupRouter } from './routes/setup.js'
+import { createTtsRouter } from './routes/tts.js'
 import { createHub } from './ws/hub.js'
 import { listPublicCharacters } from './state/characters.js'
 import { readRecentTurns, parseTurnBlock } from './state/log.js'
@@ -34,6 +35,7 @@ app.use(express.json())
 app.use('/api', pingRouter)
 app.use('/api', createCharactersRouter({ gameStateDir: config.gameStateDir, hub }))
 app.use('/api', createSetupRouter({ gameStateDir: config.gameStateDir, hub, gameState }))
+app.use('/api', createTtsRouter())
 app.use(express.static(config.clientDistDir))
 
 server.listen(config.port, () => {

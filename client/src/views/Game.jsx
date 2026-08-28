@@ -15,6 +15,8 @@ export function Game() {
     characters,
     claimCharacter,
     sendAction,
+    voiceEnabled,
+    toggleVoice,
   } = useGame()
 
   const currentCharacter = turnOrder[currentTurnIndex]
@@ -22,7 +24,12 @@ export function Game() {
 
   return (
     <div className="game">
-      <h1>Dungeon.ai</h1>
+      <div className="game-header">
+        <h1>Dungeon.ai</h1>
+        <button type="button" className="voice-toggle" onClick={toggleVoice} title="Toggle DM voice">
+          {voiceEnabled ? '🔊' : '🔇'}
+        </button>
+      </div>
 
       {!myCharacter && (
         <div className="claim-picker">
