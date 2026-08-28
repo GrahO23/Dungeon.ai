@@ -41,7 +41,7 @@ Open `http://localhost:3001`.
 
 ## How it works
 
-1. **Create characters** — each player opens the app, fills in a name, class, and optionally rolls stats or writes a backstory.
+1. **Create characters** — each player opens the app, picks a class from a dropdown, and can either type a name or click 🎲 to generate a random one, roll stats, and either write a backstory or click ✨ to have the DM generate one for them.
 2. **Start the game** — once at least one character exists, the host clicks "Start Game." The DM generates a world (setting, factions), a connected map of 4-6 named locations, a story (premise, main quest, and its own private plan for how the adventure should unfold), and an opening scene — this takes 10-20 seconds — then welcomes the party before play begins. Turn order is set from the order characters were created.
 3. **Play** — players take turns typing what their character does. The current player's browser is the only one that can send an action; everyone else sees a live narration log update in real time as the DM (Ollama) responds and the turn passes to the next player. If you ran the TTS setup step, the DM's narration is also read aloud in a deep narrator voice — toggle it off any time with the 🔊 button.
 

@@ -59,6 +59,12 @@ Browser (React) <--WS----> Game Engine (turn queue, in-memory state) <--fs--> ga
 - `gameStore.jsx` calls `speak()` on every `narration:new` message when `voiceEnabled` (persisted to `localStorage`, default on); the 🔊/🔇 toggle in `Game.jsx` flips it. A TTS failure is caught and logged, never surfaced as a game error.
 - Default voice is `en_GB-alan-medium` (deep British male) — chosen for narrator gravitas. Swap via `PIPER_VOICE` env var (must point at a `.onnx` file with a matching `.onnx.json` alongside it; more voices at [huggingface.co/rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices)).
 
+## Character creation helpers
+
+- Class is a fixed dropdown (`client/src/utils/characterOptions.js#CLASSES`), not free text — twelve standard D&D-style classes.
+- Name generation is entirely client-side and free: `generateRandomName()` combines a first/surname pool (~390 combinations) with `Math.random()`, no server round-trip. Consistent with the existing "Roll for me" stats button — this is a client-side procedural pattern already established in `CharacterForm.jsx`, not a new one.
+- Backstory generation *is* server-side (`POST /api/characters/generate-backstory { name, characterClass }` → `ollama/dm.js#generateBackstory`, `ollama/prompts.js#BACKSTORY_SYSTEM_PROMPT`/`buildBackstoryPrompt`) since it benefits from real creativity Ollama provides that a canned list can't. It's a plain prose response with **no JSON parsing** — unlike every other DM/Ollama call in this codebase, there's no structured-update contract here, just the raw trimmed text. It's also independent of any game state (no story/world/map context) since it runs before a game world exists — it only needs the name and class.
+
 ## Switching the DM's Ollama model in-game
 
 - `server/src/ollama/modelState.js` holds the single mutable "current model" (initialized from `config.ollamaModel`, i.e. `OLLAMA_MODEL`/the `qwen3:8b` default). `ollama/client.js#generate()` reads it fresh (`getCurrentModel()`) on every call, so a switch takes effect starting with the next DM call — never mid-flight, since a request already sent to Ollama already has its model baked into the request body.
