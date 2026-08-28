@@ -1,0 +1,54 @@
+import { useGame } from '../state/gameStore.jsx'
+import { TurnBanner } from '../components/TurnBanner.jsx'
+import { NarrationLog } from '../components/NarrationLog.jsx'
+import { ActionInput } from '../components/ActionInput.jsx'
+
+export function Game() {
+  const {
+    turnOrder,
+    currentTurnIndex,
+    currentScene,
+    recentTurns,
+    thinking,
+    lastError,
+    myCharacter,
+    characters,
+    claimCharacter,
+    sendAction,
+  } = useGame()
+
+  const currentCharacter = turnOrder[currentTurnIndex]
+  const isMyTurn = myCharacter === currentCharacter && !thinking
+
+  return (
+    <div className="game">
+      <h1>Dungeon.ai</h1>
+
+      {!myCharacter && (
+        <div className="claim-picker">
+          <p>Which character are you playing?</p>
+          <select defaultValue="" onChange={(e) => e.target.value && claimCharacter(e.target.value)}>
+            <option value="" disabled>
+              Choose a character…
+            </option>
+            {characters.map((c) => (
+              <option key={c.slug} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <p className="scene">{currentScene}</p>
+
+      <TurnBanner currentCharacter={currentCharacter} myCharacter={myCharacter} thinking={thinking} />
+
+      <NarrationLog turns={recentTurns} />
+
+      {lastError && <p className="error">{lastError}</p>}
+
+      <ActionInput disabled={!isMyTurn || !myCharacter} onSubmit={sendAction} />
+    </div>
+  )
+}

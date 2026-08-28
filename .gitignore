@@ -141,3 +141,10 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Dungeon.ai runtime game state (generated per-playthrough)
+game-state/*
+!game-state/.gitkeep
+!game-state/characters/
+game-state/characters/*
+!game-state/characters/.gitkeep
