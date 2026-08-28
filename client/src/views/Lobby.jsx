@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useGame } from '../state/gameStore.jsx'
 import { CharacterForm } from '../components/CharacterForm.jsx'
 import { CharacterCard } from '../components/CharacterCard.jsx'
+import { ModelSelector } from '../components/ModelSelector.jsx'
 import { startGame } from '../api/rest.js'
 
 export function Lobby() {
@@ -25,6 +26,7 @@ export function Lobby() {
     <div className="lobby">
       <h1>Dungeon.ai</h1>
       <p className="conn-status">{connected ? 'Connected' : 'Connecting…'}</p>
+      <ModelSelector />
 
       <section>
         <h2>Party ({characters.length})</h2>

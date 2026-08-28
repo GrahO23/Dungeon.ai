@@ -2,6 +2,7 @@ import { useGame } from '../state/gameStore.jsx'
 import { TurnBanner } from '../components/TurnBanner.jsx'
 import { NarrationLog } from '../components/NarrationLog.jsx'
 import { ActionInput } from '../components/ActionInput.jsx'
+import { ModelSelector } from '../components/ModelSelector.jsx'
 
 export function Game() {
   const {
@@ -30,6 +31,8 @@ export function Game() {
           {voiceEnabled ? '🔊' : '🔇'}
         </button>
       </div>
+
+      <ModelSelector />
 
       {!myCharacter && (
         <div className="claim-picker">

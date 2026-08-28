@@ -5,11 +5,13 @@ import { pingRouter } from './routes/ping.js'
 import { createCharactersRouter } from './routes/characters.js'
 import { createSetupRouter } from './routes/setup.js'
 import { createTtsRouter } from './routes/tts.js'
+import { createModelsRouter } from './routes/models.js'
 import { createHub } from './ws/hub.js'
 import { listPublicCharacters } from './state/characters.js'
 import { readRecentTurns, parseTurnBlock } from './state/log.js'
 import { createGameState } from './engine/gameState.js'
 import { createTurnEngine } from './engine/turnEngine.js'
+import { getCurrentModel } from './ollama/modelState.js'
 
 const app = express()
 const server = createServer(app)
@@ -22,6 +24,7 @@ const hub = createHub(server, {
     characters: listPublicCharacters(config.gameStateDir),
     ...gameState.get(),
     recentTurns: readRecentTurns(config.gameStateDir, 8).map(parseTurnBlock),
+    model: getCurrentModel(),
   }),
   onMessage: (ws, msg) => {
     if (msg?.type === 'player:action') {
@@ -36,6 +39,7 @@ app.use('/api', pingRouter)
 app.use('/api', createCharactersRouter({ gameStateDir: config.gameStateDir, hub }))
 app.use('/api', createSetupRouter({ gameStateDir: config.gameStateDir, hub, gameState }))
 app.use('/api', createTtsRouter())
+app.use('/api', createModelsRouter({ hub }))
 app.use(express.static(config.clientDistDir))
 
 server.listen(config.port, () => {

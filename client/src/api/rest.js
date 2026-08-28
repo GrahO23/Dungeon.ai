@@ -15,9 +15,37 @@ export async function createCharacter(payload) {
   return data
 }
 
+export async function generateBackstory(name, characterClass) {
+  const res = await fetch('/api/characters/generate-backstory', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, characterClass }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Failed to generate backstory')
+  return data.backstory
+}
+
 export async function startGame() {
   const res = await fetch('/api/setup/start', { method: 'POST' })
   const data = await res.json()
   if (!res.ok) throw new Error(data.error || 'Failed to start game')
+  return data
+}
+
+export async function getModels() {
+  const res = await fetch('/api/models')
+  if (!res.ok) throw new Error('Failed to load models')
+  return res.json()
+}
+
+export async function selectModel(model) {
+  const res = await fetch('/api/models/select', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Failed to select model')
   return data
 }

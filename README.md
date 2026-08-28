@@ -42,8 +42,10 @@ Open `http://localhost:3001`.
 ## How it works
 
 1. **Create characters** — each player opens the app, fills in a name, class, and optionally rolls stats or writes a backstory.
-2. **Start the game** — once at least one character exists, the host clicks "Start Game." The DM generates an opening scene and premise (this takes a few seconds) and welcomes the party before play begins. Turn order is set from the order characters were created.
+2. **Start the game** — once at least one character exists, the host clicks "Start Game." The DM generates a world (setting, factions), a connected map of 4-6 named locations, a story (premise, main quest, and its own private plan for how the adventure should unfold), and an opening scene — this takes 10-20 seconds — then welcomes the party before play begins. Turn order is set from the order characters were created.
 3. **Play** — players take turns typing what their character does. The current player's browser is the only one that can send an action; everyone else sees a live narration log update in real time as the DM (Ollama) responds and the turn passes to the next player. If you ran the TTS setup step, the DM's narration is also read aloud in a deep narrator voice — toggle it off any time with the 🔊 button.
+
+A "DM model" dropdown (visible in both the lobby and in-game) lists every model you have pulled in Ollama and lets anyone switch which one is powering the DM, any time — including mid-game. It's a shared setting everyone sees, since there's only one DM for the whole session.
 
 There's no login system — a browser "claims" whichever character it's playing (remembered locally), which only really matters if two people are sharing one screen. This is meant for a small group of trusted players on a local network, not the open internet.
 
@@ -60,8 +62,9 @@ Browser (React) <--WS----> Game Engine (turn queue, in-memory state) <--fs--> ga
 - **`server/`** — Express + WebSocket (`ws`) backend. Serves the API, runs the turn engine, and talks to Ollama.
 - **`client/`** — React + Vite frontend. A Lobby view for character creation, a Game view once play starts. Purely a renderer of whatever the server broadcasts over WebSocket — no game logic lives in the browser.
 - **`game-state/`** — the actual game, as markdown files (gitignored — this is runtime data, regenerated per playthrough, not source code):
-  - `world.md` — the generated setting, regions, factions
-  - `story.md` — premise, quests, and a running "story so far" summary
+  - `world.md` — the generated setting and factions (lore/tone)
+  - `map.md` — the persistent, connected map the DM navigates the party through: named locations, how they connect, and a quest hook tied to each one. Updates as the party travels.
+  - `story.md` — premise, main quest, the DM's own private plan for the story arc, and a running "story so far" summary
   - `state.md` — whose turn it is and what's currently happening
   - `characters/<name>.md` — one file per character sheet
   - `log.md` — the full play transcript, one turn at a time

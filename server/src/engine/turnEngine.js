@@ -1,6 +1,7 @@
 import { appendTurn } from '../state/log.js'
 import { applyCharacterUpdate } from '../state/characters.js'
 import { appendStoryNote } from '../state/story.js'
+import { applyLocationUpdate } from '../state/map.js'
 import { generateTurnResponse } from '../ollama/dm.js'
 
 export function createTurnEngine({ gameStateDir, hub, gameState }) {
@@ -57,6 +58,12 @@ export function createTurnEngine({ gameStateDir, hub, gameState }) {
       }
       if (updates?.storyNote) {
         appendStoryNote(gameStateDir, updates.storyNote)
+      }
+      if (updates?.locationUpdate) {
+        const moved = applyLocationUpdate(gameStateDir, updates.locationUpdate)
+        if (!moved) {
+          console.warn(`DM suggested an invalid locationUpdate: ${updates.locationUpdate}`)
+        }
       }
 
       const nextIndex = (state.currentTurnIndex + 1) % state.turnOrder.length

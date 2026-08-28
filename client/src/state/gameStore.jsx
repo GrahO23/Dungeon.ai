@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useReducer, useRef } from 'react'
 import { connectWebSocket } from '../api/ws.js'
 import { speak } from '../api/tts.js'
+import { getModels, selectModel as selectModelRequest } from '../api/rest.js'
 
 const GameContext = createContext(null)
 const STORAGE_KEY = 'dungeonai:myCharacter'
@@ -19,6 +20,8 @@ const initialState = {
   lastError: null,
   myCharacter: window.localStorage.getItem(STORAGE_KEY),
   voiceEnabled: window.localStorage.getItem(VOICE_STORAGE_KEY) !== 'false',
+  model: '',
+  availableModels: [],
 }
 
 function reducer(state, action) {
@@ -51,6 +54,10 @@ function reducer(state, action) {
       return { ...state, myCharacter: action.payload }
     case 'toggleVoice':
       return { ...state, voiceEnabled: !state.voiceEnabled }
+    case 'model:changed':
+      return { ...state, model: action.payload.model }
+    case 'models:loaded':
+      return { ...state, availableModels: action.payload.models, model: state.model || action.payload.current }
     default:
       return state
   }
@@ -65,6 +72,12 @@ export function GameProvider({ children }) {
     voiceEnabledRef.current = state.voiceEnabled
     window.localStorage.setItem(VOICE_STORAGE_KEY, String(state.voiceEnabled))
   }, [state.voiceEnabled])
+
+  useEffect(() => {
+    getModels()
+      .then(({ models, current }) => dispatch({ type: 'models:loaded', payload: { models, current } }))
+      .catch((err) => console.warn('Failed to load Ollama models:', err))
+  }, [])
 
   useEffect(() => {
     const ws = connectWebSocket((msg) => {
@@ -86,6 +99,8 @@ export function GameProvider({ children }) {
 
   const toggleVoice = useCallback(() => dispatch({ type: 'toggleVoice' }), [])
 
+  const selectModel = useCallback((model) => selectModelRequest(model), [])
+
   const sendAction = useCallback(
     (text) => {
       const ws = wsRef.current
@@ -96,7 +111,7 @@ export function GameProvider({ children }) {
   )
 
   return (
-    <GameContext.Provider value={{ ...state, claimCharacter, sendAction, toggleVoice }}>
+    <GameContext.Provider value={{ ...state, claimCharacter, sendAction, toggleVoice, selectModel }}>
       {children}
     </GameContext.Provider>
   )
