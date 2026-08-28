@@ -1,5 +1,6 @@
 import express from 'express'
 import { createServer } from 'node:http'
+import os from 'node:os'
 import { config } from './config.js'
 import { pingRouter } from './routes/ping.js'
 import { createCharactersRouter } from './routes/characters.js'
@@ -42,6 +43,20 @@ app.use('/api', createTtsRouter())
 app.use('/api', createModelsRouter({ hub }))
 app.use(express.static(config.clientDistDir))
 
+function getLanAddress() {
+  for (const ifaceList of Object.values(os.networkInterfaces())) {
+    for (const iface of ifaceList ?? []) {
+      if (iface.family === 'IPv4' && !iface.internal) return iface.address
+    }
+  }
+  return null
+}
+
 server.listen(config.port, () => {
-  console.log(`Dungeon.ai server listening on http://localhost:${config.port}`)
+  const lanAddress = getLanAddress()
+  console.log('Dungeon.ai server listening')
+  console.log(`  Local:   http://localhost:${config.port}`)
+  if (lanAddress) {
+    console.log(`  Network: http://${lanAddress}:${config.port}`)
+  }
 })
