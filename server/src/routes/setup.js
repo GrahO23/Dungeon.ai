@@ -54,12 +54,16 @@ export function createSetupRouter({ gameStateDir, hub, gameState }) {
       return res.status(400).json({ error: 'at least one character is required to start' })
     }
 
+    hub.broadcast('setup:started', {})
+
     let intro
     try {
       intro = await generateGameIntro({ characters })
     } catch (err) {
       console.error('Failed to generate game intro:', err)
-      return res.status(502).json({ error: 'The DM failed to prepare the opening scene. Please try again.' })
+      const error = 'The DM failed to prepare the opening scene. Please try again.'
+      hub.broadcast('setup:failed', { error })
+      return res.status(502).json({ error })
     }
 
     writeWorld(

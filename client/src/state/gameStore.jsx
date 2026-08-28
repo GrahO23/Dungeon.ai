@@ -17,6 +17,7 @@ const initialState = {
   currentScene: '',
   recentTurns: [],
   thinking: false,
+  starting: false,
   lastError: null,
   myCharacter: window.localStorage.getItem(STORAGE_KEY),
   voiceEnabled: window.localStorage.getItem(VOICE_STORAGE_KEY) !== 'false',
@@ -34,8 +35,12 @@ function reducer(state, action) {
       return { ...state, ...action.payload, thinking: false }
     case 'roster:updated':
       return { ...state, characters: action.payload.characters }
+    case 'setup:started':
+      return { ...state, starting: true, lastError: null }
+    case 'setup:failed':
+      return { ...state, starting: false, lastError: action.payload.error }
     case 'session:started':
-      return { ...state, ...action.payload }
+      return { ...state, ...action.payload, starting: false }
     case 'turn:thinking':
       return { ...state, thinking: true }
     case 'turn:changed':

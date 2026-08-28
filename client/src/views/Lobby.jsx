@@ -3,22 +3,19 @@ import { useGame } from '../state/gameStore.jsx'
 import { CharacterForm } from '../components/CharacterForm.jsx'
 import { CharacterCard } from '../components/CharacterCard.jsx'
 import { ModelSelector } from '../components/ModelSelector.jsx'
+import { StartingProgress } from '../components/StartingProgress.jsx'
 import { startGame } from '../api/rest.js'
 
 export function Lobby() {
-  const { characters, connected, claimCharacter } = useGame()
+  const { characters, connected, starting, lastError, claimCharacter } = useGame()
   const [error, setError] = useState(null)
-  const [starting, setStarting] = useState(false)
 
   async function handleStart() {
     setError(null)
-    setStarting(true)
     try {
       await startGame()
     } catch (err) {
       setError(err.message)
-    } finally {
-      setStarting(false)
     }
   }
 
@@ -37,13 +34,19 @@ export function Lobby() {
         </ul>
       </section>
 
-      <CharacterForm onCreated={(character) => claimCharacter(character.name)} />
+      {starting ? (
+        <StartingProgress />
+      ) : (
+        <>
+          <CharacterForm onCreated={(character) => claimCharacter(character.name)} />
 
-      {error && <p className="error">{error}</p>}
+          {(error || lastError) && <p className="error">{error || lastError}</p>}
 
-      <button className="start-game" disabled={characters.length === 0 || starting} onClick={handleStart}>
-        {starting ? 'Starting…' : 'Start Game'}
-      </button>
+          <button className="start-game" disabled={characters.length === 0} onClick={handleStart}>
+            Start Game
+          </button>
+        </>
+      )}
     </div>
   )
 }
