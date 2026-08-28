@@ -14,16 +14,27 @@ import { readMap, getNearbyLocations } from '../state/map.js'
 
 const RECENT_TURNS_FOR_CONTEXT = 6
 
+// Safety net for the prompt's sentence-count instructions: the model doesn't
+// always honor them, so hard-clip narration server-side rather than let a
+// verbose response reach players and TTS unbounded.
+const MAX_NARRATION_SENTENCES = 4
+
+function capSentences(text, maxSentences = MAX_NARRATION_SENTENCES) {
+  const sentences = text.match(/[^.!?]+[.!?]+(?:\s+|$)/g)
+  if (!sentences || sentences.length <= maxSentences) return text.trim()
+  return sentences.slice(0, maxSentences).join('').trim()
+}
+
 function parseDmResponse(raw) {
   const match = raw.match(/```json\s*([\s\S]*?)```\s*$/)
-  if (!match) return { narration: raw.trim(), updates: {} }
+  if (!match) return { narration: capSentences(raw.trim()), updates: {} }
 
   const narration = raw.slice(0, match.index).trim()
   try {
-    return { narration, updates: JSON.parse(match[1]) }
+    return { narration: capSentences(narration), updates: JSON.parse(match[1]) }
   } catch (err) {
     console.warn('DM response had an unparsable JSON block, ignoring updates:', err.message)
-    return { narration: narration || raw.trim(), updates: {} }
+    return { narration: capSentences(narration || raw.trim()), updates: {} }
   }
 }
 
