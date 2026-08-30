@@ -2,8 +2,8 @@ import { spawn } from 'node:child_process'
 import { config } from '../config.js'
 import { voicePath, voiceExists } from './voices.js'
 
-const MIN_SPEED = 0.5
-const MAX_SPEED = 2.0
+export const MIN_SPEED = 0.5
+export const MAX_SPEED = 2.0
 
 // Piper's --length_scale is a phoneme-duration multiplier, the inverse of
 // "speed" (higher length_scale = slower speech) — this does real synthesis-

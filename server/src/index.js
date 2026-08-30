@@ -16,6 +16,7 @@ import { readMap, getExploredMap } from './state/map.js'
 import { createGameState } from './engine/gameState.js'
 import { createTurnEngine } from './engine/turnEngine.js'
 import { getCurrentModel } from './ollama/modelState.js'
+import { getCurrentVoice, getCurrentSpeed } from './tts/voiceState.js'
 
 const app = express()
 const server = createServer(app)
@@ -30,6 +31,8 @@ const hub = createHub(server, {
     ...gameState.get(),
     recentTurns: readRecentTurns(config.gameStateDir, 8).map(parseTurnBlock),
     model: getCurrentModel(),
+    voiceId: getCurrentVoice(),
+    voiceSpeed: getCurrentSpeed(),
     map: getExploredMap(readMap(config.gameStateDir).data),
   }),
   onMessage: (ws, msg) => {
@@ -44,7 +47,7 @@ app.use(express.json())
 app.use('/api', pingRouter)
 app.use('/api', createCharactersRouter({ gameStateDir: config.gameStateDir, hub }))
 app.use('/api', createSetupRouter({ gameStateDir: config.gameStateDir, scenariosDir: config.scenariosDir, hub, gameState }))
-app.use('/api', createTtsRouter())
+app.use('/api', createTtsRouter({ hub, gameState }))
 app.use('/api', createModelsRouter({ hub, gameState }))
 app.use('/api', createScenariosRouter({ scenariosDir: config.scenariosDir }))
 app.use(express.static(config.clientDistDir))

@@ -56,6 +56,20 @@ export async function getVoices() {
   return res.json()
 }
 
+// partial is { voice? } and/or { speed? } — mirrors the server's
+// independent-optional-patch contract, so setting one never clobbers the
+// other.
+export async function updateVoiceSettings(partial) {
+  const res = await fetch('/api/tts/select', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(partial),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Failed to update voice settings')
+  return data
+}
+
 export async function getModels() {
   const res = await fetch('/api/models')
   if (!res.ok) throw new Error('Failed to load models')
