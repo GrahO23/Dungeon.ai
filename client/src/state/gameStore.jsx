@@ -1,11 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useReducer, useRef } from 'react'
 import { connectWebSocket } from '../api/ws.js'
 import { speak } from '../api/tts.js'
-import { getModels, selectModel as selectModelRequest } from '../api/rest.js'
+import { getModels, getVoices, selectModel as selectModelRequest } from '../api/rest.js'
 
 const GameContext = createContext(null)
 const STORAGE_KEY = 'dungeonai:myCharacter'
 const VOICE_STORAGE_KEY = 'dungeonai:voiceEnabled'
+const VOICE_ID_STORAGE_KEY = 'dungeonai:voiceId'
+const VOICE_SPEED_STORAGE_KEY = 'dungeonai:voiceSpeed'
 
 const initialState = {
   connected: false,
@@ -21,6 +23,9 @@ const initialState = {
   lastError: null,
   myCharacter: window.localStorage.getItem(STORAGE_KEY),
   voiceEnabled: window.localStorage.getItem(VOICE_STORAGE_KEY) !== 'false',
+  voiceId: window.localStorage.getItem(VOICE_ID_STORAGE_KEY) || '',
+  voiceSpeed: Number(window.localStorage.getItem(VOICE_SPEED_STORAGE_KEY)) || 1,
+  availableVoices: [],
   model: '',
   availableModels: [],
   map: { currentLocationId: null, visited: [], frontier: [] },
@@ -60,6 +65,12 @@ function reducer(state, action) {
       return { ...state, myCharacter: action.payload }
     case 'toggleVoice':
       return { ...state, voiceEnabled: !state.voiceEnabled }
+    case 'setVoiceId':
+      return { ...state, voiceId: action.payload }
+    case 'setVoiceSpeed':
+      return { ...state, voiceSpeed: action.payload }
+    case 'voices:loaded':
+      return { ...state, availableVoices: action.payload.voices, voiceId: state.voiceId || action.payload.current }
     case 'model:changed':
       return { ...state, model: action.payload.model }
     case 'map:updated':
@@ -75,6 +86,8 @@ export function GameProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState)
   const wsRef = useRef(null)
   const voiceEnabledRef = useRef(state.voiceEnabled)
+  const voiceIdRef = useRef(state.voiceId)
+  const voiceSpeedRef = useRef(state.voiceSpeed)
 
   useEffect(() => {
     voiceEnabledRef.current = state.voiceEnabled
@@ -82,16 +95,29 @@ export function GameProvider({ children }) {
   }, [state.voiceEnabled])
 
   useEffect(() => {
+    voiceIdRef.current = state.voiceId
+    if (state.voiceId) window.localStorage.setItem(VOICE_ID_STORAGE_KEY, state.voiceId)
+  }, [state.voiceId])
+
+  useEffect(() => {
+    voiceSpeedRef.current = state.voiceSpeed
+    window.localStorage.setItem(VOICE_SPEED_STORAGE_KEY, String(state.voiceSpeed))
+  }, [state.voiceSpeed])
+
+  useEffect(() => {
     getModels()
       .then(({ models, current }) => dispatch({ type: 'models:loaded', payload: { models, current } }))
       .catch((err) => console.warn('Failed to load Ollama models:', err))
+    getVoices()
+      .then(({ voices, current }) => dispatch({ type: 'voices:loaded', payload: { voices, current } }))
+      .catch((err) => console.warn('Failed to load TTS voices:', err))
   }, [])
 
   useEffect(() => {
     const ws = connectWebSocket((msg) => {
       dispatch(msg)
       if (msg.type === 'narration:new' && voiceEnabledRef.current) {
-        speak(msg.payload.dmText)
+        speak(msg.payload.dmText, { voice: voiceIdRef.current, speed: voiceSpeedRef.current })
       }
     })
     wsRef.current = ws
@@ -106,6 +132,8 @@ export function GameProvider({ children }) {
   }, [])
 
   const toggleVoice = useCallback(() => dispatch({ type: 'toggleVoice' }), [])
+  const setVoiceId = useCallback((voiceId) => dispatch({ type: 'setVoiceId', payload: voiceId }), [])
+  const setVoiceSpeed = useCallback((speed) => dispatch({ type: 'setVoiceSpeed', payload: speed }), [])
 
   const selectModel = useCallback((model) => selectModelRequest(model), [])
 
@@ -119,7 +147,9 @@ export function GameProvider({ children }) {
   )
 
   return (
-    <GameContext.Provider value={{ ...state, claimCharacter, sendAction, toggleVoice, selectModel }}>
+    <GameContext.Provider
+      value={{ ...state, claimCharacter, sendAction, toggleVoice, setVoiceId, setVoiceSpeed, selectModel }}
+    >
       {children}
     </GameContext.Provider>
   )

@@ -43,13 +43,38 @@ Open `http://localhost:3001`.
 
 1. **Create characters** — each player opens the app, picks a class from a dropdown, and can either type a name or click 🎲 to generate a random one, roll stats, and either write a backstory or click ✨ to have the DM generate one for them.
 2. **Start the game** — once at least one character exists, the host clicks "Start Game." The DM generates a world (setting, factions), a connected map of 4-6 named locations, a story (premise, main quest, and its own private plan for how the adventure should unfold), and an opening scene — this takes 10-20 seconds — then welcomes the party before play begins. Turn order is set from the order characters were created.
-3. **Play** — players take turns typing what their character does. The current player's browser is the only one that can send an action; everyone else sees a live narration log update in real time as the DM (Ollama) responds and the turn passes to the next player. If you ran the TTS setup step, the DM's narration is also read aloud in a deep narrator voice — toggle it off any time with the 🔊 button.
+3. **Play** — players take turns typing what their character does. The current player's browser is the only one that can send an action; everyone else sees a live narration log update in real time as the DM (Ollama) responds and the turn passes to the next player. If you ran the TTS setup step, the DM's narration is also read aloud in a deep narrator voice — toggle it off any time with the 🔊 button, or open ⚙️ next to it to change the voice or its speed (see [Voice settings](#voice-settings) below).
 
 A "DM model" dropdown (visible in both the lobby and in-game) lists every model you have pulled in Ollama and lets anyone switch which one is powering the DM, any time — including mid-game. It's a shared setting everyone sees, since there's only one DM for the whole session.
 
 There's no login system — a browser "claims" whichever character it's playing (remembered locally), which only really matters if two people are sharing one screen. This is meant for a small group of trusted players on a local network, not the open internet.
 
 Combat, skill checks (persuasion, stealth, perception, lockpicking, and the like), and item use are resolved with real dice server-side — the DM narrates the outcome, but never invents whether an attack hits or a check succeeds. Player actions stay plain typed text ("I attack the goblin," "I try to sneak past the guard"); the server figures out what kind of action it is and rolls accordingly.
+
+## Voice settings
+
+The ⚙️ button (next to the 🔊/🔇 toggle, in both the lobby and in-game) opens a settings panel with:
+
+- **Voice** — a dropdown of every voice model installed on the server (see [Adding new voice models](#adding-new-voice-models) below). Only one ships by default (`en_GB-alan-medium`).
+- **Speed** — a slider from 0.5x to 2x. This isn't just audio played back faster/slower — it's passed to Piper as `--length_scale`, which re-times the actual speech synthesis, so pitch stays natural even at the extremes.
+
+Both are per-browser preferences (saved to that browser's local storage), like the 🔊/🔇 toggle — everyone at the table can pick their own voice and speed independently, since each browser fetches its own narration audio from the server.
+
+### Adding new voice models
+
+`scripts/setup-tts.sh` only installs one default voice. Piper has dozens more, in many languages and accents, at the [piper-voices](https://huggingface.co/rhasspy/piper-voices) model repo on Hugging Face. To add one:
+
+1. Find a voice you like there. Each one is a pair of files, `<voice-id>.onnx` and `<voice-id>.onnx.json` (e.g. `en_US-lessac-medium.onnx` / `.onnx.json`), under a path like `<lang>/<LANG_REGION>/<name>/<quality>/`.
+2. Download both files into `vendor/piper/voices/` (create it if it doesn't exist — `scripts/setup-tts.sh` normally does this for you). For example:
+   ```bash
+   curl -L --fail -o vendor/piper/voices/en_US-lessac-medium.onnx \
+     https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx
+   curl -L --fail -o vendor/piper/voices/en_US-lessac-medium.onnx.json \
+     https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx.json
+   ```
+3. That's it — no server restart needed. The server scans `vendor/piper/voices/` fresh every time the settings panel opens, so the new voice just shows up in the dropdown next time you (re)open it.
+
+The server's *default* voice (used until a browser picks something else, and by anyone who hasn't opened the settings panel) is set by the `PIPER_VOICE` environment variable — point it at any `.onnx` file you've installed, e.g. `PIPER_VOICE=vendor/piper/voices/en_US-lessac-medium.onnx npm run dev`.
 
 ## Pre-built scenarios
 

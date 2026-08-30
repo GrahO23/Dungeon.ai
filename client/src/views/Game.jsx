@@ -7,6 +7,7 @@ import { CharacterSheet } from '../components/CharacterSheet.jsx'
 import { InventoryPanel } from '../components/InventoryPanel.jsx'
 import { MapView } from '../components/MapView.jsx'
 import { CharacterCard } from '../components/CharacterCard.jsx'
+import { SettingsPanel } from '../components/SettingsPanel.jsx'
 
 export function Game() {
   const {
@@ -34,9 +35,12 @@ export function Game() {
     <div className="game">
       <div className="game-header">
         <h1>Dungeon.ai</h1>
-        <button type="button" className="voice-toggle" onClick={toggleVoice} title="Toggle DM voice">
-          {voiceEnabled ? '🔊' : '🔇'}
-        </button>
+        <div className="game-header-actions">
+          <button type="button" className="voice-toggle" onClick={toggleVoice} title="Toggle DM voice">
+            {voiceEnabled ? '🔊' : '🔇'}
+          </button>
+          <SettingsPanel />
+        </div>
       </div>
 
       <ModelSelector />

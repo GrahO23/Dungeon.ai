@@ -50,6 +50,12 @@ export async function startScenario(slug) {
   return data
 }
 
+export async function getVoices() {
+  const res = await fetch('/api/tts/voices')
+  if (!res.ok) throw new Error('Failed to load voices')
+  return res.json()
+}
+
 export async function getModels() {
   const res = await fetch('/api/models')
   if (!res.ok) throw new Error('Failed to load models')

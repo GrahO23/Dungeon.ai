@@ -4,6 +4,7 @@ import { CharacterForm } from '../components/CharacterForm.jsx'
 import { CharacterCard } from '../components/CharacterCard.jsx'
 import { ModelSelector } from '../components/ModelSelector.jsx'
 import { StartingProgress } from '../components/StartingProgress.jsx'
+import { SettingsPanel } from '../components/SettingsPanel.jsx'
 import { startGame, getScenarios, startScenario } from '../api/rest.js'
 
 export function Lobby() {
@@ -38,7 +39,10 @@ export function Lobby() {
 
   return (
     <div className="lobby">
-      <h1>Dungeon.ai</h1>
+      <div className="lobby-header">
+        <h1>Dungeon.ai</h1>
+        <SettingsPanel />
+      </div>
       <p className="conn-status">{connected ? 'Connected' : 'Connecting…'}</p>
       <ModelSelector />
 

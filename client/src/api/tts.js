@@ -4,13 +4,13 @@ let playing = false
 async function playNext() {
   if (playing || queue.length === 0) return
   playing = true
-  const text = queue.shift()
+  const { text, voice, speed } = queue.shift()
 
   try {
     const res = await fetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, voice, speed }),
     })
     if (!res.ok) throw new Error(`TTS request failed (${res.status})`)
 
@@ -32,8 +32,8 @@ async function playNext() {
   }
 }
 
-export function speak(text) {
+export function speak(text, { voice, speed } = {}) {
   if (!text?.trim()) return
-  queue.push(text)
+  queue.push({ text, voice, speed })
   playNext()
 }

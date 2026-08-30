@@ -1,9 +1,29 @@
 import { getSection } from '../state/sections.js'
 
-export const BACKSTORY_SYSTEM_PROMPT = `You write short, evocative backstories for tabletop role-playing game characters. Given a character's name and class, invent who they are, where they came from, and what drives them to adventure. Write 2-3 sentences in third person, plain prose only — no markdown, no headers, no extra commentary. Output only the backstory text itself.`
+// A concrete thematic angle per class, fed into the backstory prompt so the
+// result is grounded in what actually shaped this class's skills and
+// motivations, rather than a generic "wanderer seeking adventure" that
+// happens to have the class name attached.
+const CLASS_BACKSTORY_ANGLES = {
+  Barbarian: 'a tribal or wilderness upbringing, and the primal rage, loss, or trial that forged their fighting spirit',
+  Bard: 'a life of performance, travel, or storytelling, and the charm, wit, or debt that first pushed them onto the road',
+  Cleric: 'a devotion to a specific deity or faith, and the calling, miracle, or crisis of belief that set them on this path',
+  Druid: "a deep bond with nature or a particular wild place, and the balance or oath they've sworn to protect",
+  Fighter: 'formal military training or hard-won battlefield experience, and the discipline or cause that shaped them',
+  Monk: 'rigorous training in a monastery or under a master, and the inner discipline or vow they still live by',
+  Paladin: "a sacred oath or divine calling, and the ideal they've sworn to uphold no matter the cost",
+  Ranger: 'a life spent on the wild frontier, and the tracking or survival skill it forged in them',
+  Rogue: 'a background in the shadows — crime, spycraft, or survival on the streets — and what it taught them',
+  Sorcerer: 'an innate, uncontrolled magical gift, often from birth or a strange event, and how they learned to live with it',
+  Warlock: 'a pact struck with a powerful, otherworldly patron, and the price or purpose that still binds them to it',
+  Wizard: 'years of rigorous magical study, and the pursuit of knowledge or mystery that still drives them',
+}
+
+export const BACKSTORY_SYSTEM_PROMPT = `You write short, evocative backstories for tabletop role-playing game characters. Given a character's name, class, and a thematic angle specific to that class, invent who they are, where they came from, and what drives them to adventure — grounded concretely in that class's training, calling, or defining experience, not a generic "wanderer seeking adventure" that could belong to any class. Write 2-3 sentences in third person, plain prose only — no markdown, no headers, no extra commentary. Output only the backstory text itself.`
 
 export function buildBackstoryPrompt({ name, characterClass }) {
-  return `Character name: ${name}\nClass: ${characterClass}\n\nWrite their backstory.`
+  const angle = CLASS_BACKSTORY_ANGLES[characterClass] ?? 'their unique path into adventure'
+  return `Character name: ${name}\nClass: ${characterClass}\nClass-specific angle to weave in: ${angle}\n\nWrite their backstory.`
 }
 
 export const INTRO_SYSTEM_PROMPT = `You are the Dungeon Master opening a brand new tabletop role-playing game session for a group of players.
