@@ -65,17 +65,28 @@ currentLocationId: warren-gate
 locations:
   - id: warren-gate
     name: Warren Gate
-    description: A crude wooden palisade guards the entrance to the goblin warren.
+    description: >
+      A crude wooden palisade of sharpened stakes guards the entrance to the goblin warren, lashed
+      together with rope and studded with crow skulls meant to ward off intruders. Smoke curls up
+      from cookfires beyond it, carrying the smell of charred meat, and the low murmur of goblin
+      voices drifts out through the gap where the gate hangs half-open. A dented iron bell hangs
+      from a post beside the gate, clearly meant to raise an alarm if struck.
     connectsTo: [tunnel-junction]
     questHook: ""
   - id: tunnel-junction
     name: Tunnel Junction
-    description: Torchlit tunnels branch three ways into the dark.
+    description: >
+      Torchlit tunnels branch three ways into the dark, the walls slick with damp and scored with
+      crude goblin glyphs. Bones — some clearly not goblin — are piled in a side alcove, and a
+      cold draft from the leftmost tunnel suggests it leads somewhere larger.
     connectsTo: [warren-gate, chieftains-hall]
     questHook: "Rumors say the chieftain keeps the stolen relic here."
   - id: chieftains-hall
     name: Chieftain's Hall
-    description: A wide cavern lit by bonfires, where the goblin chieftain holds court.
+    description: >
+      A wide cavern lit by roaring bonfires, where the goblin chieftain holds court from a throne
+      built of scavenged furniture and stolen armor plating. Trophies — weapons, banners, a knight's
+      helm — hang from the walls, and the floor is littered with gnawed bones and spilled ale.
     connectsTo: [tunnel-junction]
     questHook: "The main quest concludes here."
 ---
@@ -87,6 +98,13 @@ links listed **in both directions** (if A connects to B, B must also list A). Ev
 should tie back to a beat in `story.md`'s `## DM Plan` or `## Win Conditions`, or be an empty
 string. The climax location (where the main quest resolves, typically where the boss lives) must
 be reachable.
+
+Write each `description` as 2-4 sentences of vivid, concrete detail — sights, sounds, smells, a
+notable object or feature the party could interact with, and a hint of danger or opportunity —
+not a single flat sentence. This is the same bounded "nearby locations" context fed into every
+per-turn DM prompt (`getNearbyLocations` — current location plus its direct connections only), so
+richer descriptions directly improve how vividly the DM can narrate a room without adding to the
+full-map context budget.
 
 ## story.md
 
@@ -144,6 +162,12 @@ attackBonus: 5
 damageDice: 2d6
 locationId: chieftains-hall
 hostile: true
+personality: Boastful and cruel, but a coward underneath once his warband is gone.
+backstory: >
+  Grulka clawed his way to chieftain by killing the last one in his sleep, and rules through fear
+  rather than respect. He is obsessed with the Sunstone he stole from a passing caravan, convinced
+  it will let him command the other warren clans — he'll gloat about this if given the chance to
+  talk before a fight breaks out.
 loot:
   - Chieftain's Warclub
   - The Sunstone
@@ -158,6 +182,18 @@ directly into `server/src/rules/combat.js#resolveAttack` — pick numbers that k
 winnable for a party of the `scenario.json` `recommendedPartySize` (a rough guide: `ac` 10-14,
 `attackBonus` 2-6, `damageDice` `1d6` to `2d6` for regular enemies, up to `3d6`/higher `hp` for a
 boss).
+
+`personality` (a short trait phrase) and `backstory` (1-2 sentences on who they are, where they
+came from, and what they currently want) are what let the DM actually roleplay this NPC when a
+player talks to them instead of — or before — fighting them (`server/src/ollama/prompts.js`
+feeds every NPC/enemy at the party's current location into the per-turn prompt as "Notable NPCs
+Here", full backstory included). Give every named NPC both fields, hostile or not — a hostile one
+still benefits from a personality when a player tries to talk their way past them, or when the DM
+narrates their taunts. Only unnamed, disposable trash mobs (a generic "Goblin Guard" with no
+individual identity) can skip them. A friendly NPC meant purely for conversation (a quest-giver,
+a merchant) can omit `hp`/`maxHp`/`ac`/`attackBonus`/`damageDice`/`loot` entirely — omitting `hp`
+does not hide them from the DM (`listEnemiesAtLocation` never gates a `hostile: false` entry on
+hp), only combat gates on it.
 
 A scenario needs at least 3-5 enemies/NPCs total, and at least one `kind: boss` tied to the
 climax location named in `story.md`'s Win Conditions.

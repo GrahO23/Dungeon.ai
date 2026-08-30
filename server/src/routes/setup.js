@@ -6,6 +6,7 @@ import { readMap, writeMap, getCurrentLocation, getExploredMap } from '../state/
 import { appendTurn } from '../state/log.js'
 import { generateGameIntro } from '../ollama/dm.js'
 import { listEnemies, writeEnemy, listPublicEnemiesHere } from '../state/enemies.js'
+import { slugify } from '../state/characters.js'
 import { scenarioDir, scenarioExists } from '../state/scenarios.js'
 import { getSection, removeSection } from '../state/sections.js'
 
@@ -76,7 +77,15 @@ export function createSetupRouter({ gameStateDir, scenariosDir, hub, gameState }
         `## Factions\n${bulletList(intro.factions, '(not established)')}`,
     )
 
-    writeMap(gameStateDir, resolveMap(intro))
+    const map = resolveMap(intro)
+    writeMap(gameStateDir, map)
+
+    const validLocationIds = new Set(map.locations.map((loc) => loc.id))
+    for (const npc of intro.npcs ?? []) {
+      if (!npc.name || !validLocationIds.has(npc.locationId)) continue
+      const { name, ...rest } = npc
+      writeEnemy(gameStateDir, slugify(name), { name, ...rest })
+    }
 
     writeStory(
       gameStateDir,

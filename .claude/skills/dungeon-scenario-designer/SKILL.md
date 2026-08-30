@@ -45,13 +45,19 @@ match it exactly rather than improvising a shape that looks similar.
    wants more, say so and either split into a bigger single graph carefully or flag the tradeoff
    before exceeding it), starting from an obvious entry point and ending at a climax location
    where the main quest resolves. Every `connectsTo` link must go both ways. Give each location a
-   `questHook` when it ties to a story beat, an empty string otherwise.
+   `questHook` when it ties to a story beat, an empty string otherwise. Write each `description`
+   as 2-4 sentences of vivid, concrete sensory detail (sights, sounds, smells, a notable object or
+   feature) per `references/schema.md` — not a single flat sentence.
 
 3. **Populate the cast.** Write 3-5 enemies/NPCs, placed at specific `locationId`s from the map.
    Include at least one `kind: boss` at the climax location, tuned (per `references/schema.md`'s
    guidance and step 0's difficulty/party-size answers) to be a real fight but winnable for the
    chosen party size. Include at least one `hostile: false` NPC if the premise has room for a
-   quest-giver, informant, or merchant — not every location needs to be a fight.
+   quest-giver, informant, or merchant — not every location needs to be a fight. Give every named
+   enemy/NPC (hostile or not) a concrete `personality` and `backstory` per `references/schema.md`
+   — specific enough that a player could actually hold a conversation with them and walk away
+   knowing something real (a name to drop, a grudge, a rumor, a price for their help) — only
+   generic unnamed trash mobs can skip these fields.
 
 4. **Write the DM Plan and Story So Far.** 3-5 ordered beats in `story.md`'s `## DM Plan` (never
    shown to players — it steers the DM's narration turn to turn) that lead from the opening scene

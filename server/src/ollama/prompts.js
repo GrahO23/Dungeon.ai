@@ -41,14 +41,19 @@ After the narration, include exactly one fenced JSON code block with these field
   "mainQuest": "one sentence describing the main quest",
   "plan": ["a short ordered list of 3-5 major story beats you intend this campaign to move through, from early to late"],
   "locations": [
-    { "id": "kebab-case-id", "name": "Location Name", "description": "one sentence", "connectsTo": ["other-location-id"], "questHook": "one sentence tying this place to the plan, or an empty string" }
+    { "id": "kebab-case-id", "name": "Location Name", "description": "2-4 sentences of vivid sensory detail — sights, sounds, smells, a notable feature or object the party could interact with, and a hint of danger or opportunity", "connectsTo": ["other-location-id"], "questHook": "one sentence tying this place to the plan, or an empty string" }
   ],
   "startLocationId": "the id of the location from \\"locations\\" where the party begins",
-  "scene": "one sentence describing exactly where the party currently stands right now — must match the start location"
+  "scene": "one sentence describing exactly where the party currently stands right now — must match the start location",
+  "npcs": [
+    { "name": "NPC Name", "kind": "npc|enemy|boss", "locationId": "a real id from \\"locations\\"", "hostile": true, "personality": "a short trait phrase, e.g. \\"gruff and suspicious of outsiders\\"", "backstory": "1-2 sentences on who they are, where they came from, and what they currently want — concrete enough to roleplay a real conversation with them", "hp": 12, "maxHp": 12, "ac": 12, "attackBonus": 3, "damageDice": "1d6", "loot": ["Item Name"] }
+  ]
 }
 \`\`\`
 
-Include 1-3 entries in "factions". Include 4-6 entries in "locations" forming a connected map (every location should be reachable from the start location via "connectsTo" links; list connections in both directions). The "plan" is your own private outline to keep future scenes consistent, and "locations" is the persistent map you'll navigate the party through — neither is shown to players directly, so be concrete and specific.`
+Include 1-3 entries in "factions". Include 4-6 entries in "locations" forming a connected map (every location should be reachable from the start location via "connectsTo" links; list connections in both directions). The "plan" is your own private outline to keep future scenes consistent, and "locations" is the persistent map you'll navigate the party through — neither is shown to players directly, so be concrete and specific.
+
+Include 3-6 entries in "npcs", spread across different locations, with a mix of "hostile": true and "hostile": false — never populate every location, and never make every NPC hostile. Every NPC needs a real "personality" and "backstory" grounded enough that a player could hold an actual conversation with them and learn something concrete (a name, a grudge, a rumor, a price) — never a generic "a mysterious figure" with nothing behind it. Hostile entries still get a personality/backstory (it colors how they taunt or fight, and lets a player try talking their way out of a fight instead), but only need combat stats (hp/maxHp/ac/attackBonus/damageDice/loot) when "hostile" is true; friendly NPCs can omit combat stats entirely. "kind": "boss" should be reserved for a single notable, hostile named figure tied to the main quest, if you include one.`
 
 export function buildIntroPrompt(characters) {
   const roster = characters
@@ -66,6 +71,8 @@ export const DM_SYSTEM_PROMPT = `You are the Dungeon Master for a tabletop role-
 Narrate what happens as a direct, engaging result of the acting player's stated action. Address the whole party as narrator, not just the acting player. Stay consistent with the established world, story, and characters given to you. Do not decide the story is over or skip ahead multiple actions — narrate only the immediate result of this one action. If the acting character casts a spell or uses a special move, only narrate it succeeding as one they actually know (listed under "Spells/Abilities" below) — don't have them pull out a spell or move that isn't theirs.
 
 Every response has two parts. First, the result of the action (1-2 sentences). Then, always ground the party in the here and now: briefly describe their current surroundings, and make clear what they can do or where they can go next. When mentioning where the party can go, prefer the real, named places listed under "Nearby Locations" below — use their names so players can act on them, don't invent new destinations out of nowhere. Keep the whole response to at most 4 sentences total — this is a hard limit, not a target — and never end without giving the players something concrete to act on. Write the narration as plain prose only — no markdown formatting (no asterisks, bold, headers, or bullet lists); it is displayed and read aloud as plain text.
+
+If the acting character is talking to, questioning, or otherwise addressing someone listed under "Notable NPCs Here" below, actually roleplay that NPC in character — draw on their personality and backstory to decide what they'd say, what they know, and what they want, rather than giving a vague, noncommittal response. A hostile NPC doesn't hold a friendly chat by default (a threat, a taunt, or silence before violence fits better) unless the player's approach or the story gives them a real reason to talk instead of fight. Never invent an NPC's name, personality, or backstory on the fly if they're listed below — use what's given; you may invent minor unnamed background characters freely.
 
 If a "Resolved Outcome" section is given below, it is the deterministic result of a dice roll the server already made — narrate exactly that outcome (hit/miss, damage, success/failure) and never describe a different result. Do not include an hp value in characterUpdates for the character or enemy the Resolved Outcome already covers — the server applies that automatically; you may still add other flavor changes (items found, a new status effect, a note) for anyone involved.
 
@@ -111,7 +118,19 @@ function formatAbilities(abilities) {
     : 'none'
 }
 
-export function buildTurnPrompt({ story, character, recentTurns, scene, action, nearby, resolvedOutcome }) {
+function formatNpc(npc) {
+  const disposition = npc.data.hostile === false ? 'friendly' : 'hostile'
+  const alive = npc.data.maxHp > 0 && npc.data.hp <= 0 ? ' (defeated)' : ''
+  const personality = npc.data.personality ? ` Personality: ${npc.data.personality.replace(/\.+$/, '')}.` : ''
+  const backstory = npc.data.backstory ? ` Backstory: ${npc.data.backstory}` : ''
+  return `${npc.data.name} [${disposition}]${alive}:${personality}${backstory}`
+}
+
+function formatNpcsHere(npcsHere) {
+  return npcsHere?.length ? npcsHere.map((npc) => `- ${formatNpc(npc)}`).join('\n') : '(no one else is here)'
+}
+
+export function buildTurnPrompt({ story, character, recentTurns, scene, action, nearby, npcsHere, resolvedOutcome }) {
   const recentTurnsText = recentTurns.length
     ? recentTurns
         .map((t) => `Turn ${t.turnNumber} — ${t.character}\nPlayer: ${t.playerText}\nDM: ${t.dmText}`)
@@ -135,6 +154,9 @@ ${scene || '(not yet established)'}
 
 ## Nearby Locations
 ${mapText}
+
+## Notable NPCs Here
+${formatNpcsHere(npcsHere)}
 
 ## Acting Character: ${character.data.name}
 Class: ${character.data.class}, Level: ${character.data.level}, HP: ${character.data.hp}/${character.data.maxHp}, AC: ${character.data.ac ?? '?'}

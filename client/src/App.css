@@ -862,6 +862,13 @@ select {
   color: var(--text);
 }
 
+.enemy-personality {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-dim);
+}
+
 .enemy-badge {
   font-size: 10px;
   padding: 2px 8px;

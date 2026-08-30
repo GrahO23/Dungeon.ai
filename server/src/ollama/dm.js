@@ -13,6 +13,7 @@ import { readStory } from '../state/story.js'
 import { readCharacter, slugify } from '../state/characters.js'
 import { readRecentTurns, parseTurnBlock } from '../state/log.js'
 import { readMap, getNearbyLocations } from '../state/map.js'
+import { listEnemiesAtLocation } from '../state/enemies.js'
 
 const RECENT_TURNS_FOR_CONTEXT = 6
 
@@ -45,8 +46,9 @@ export async function generateTurnResponse({ character, action, gameStateDir, sc
   const characterSheet = readCharacter(gameStateDir, slugify(character))
   const recentTurns = readRecentTurns(gameStateDir, RECENT_TURNS_FOR_CONTEXT).map(parseTurnBlock)
   const nearby = getNearbyLocations(readMap(gameStateDir).data)
+  const npcsHere = nearby.current ? listEnemiesAtLocation(gameStateDir, nearby.current.id) : []
 
-  const prompt = buildTurnPrompt({ story, character: characterSheet, recentTurns, scene, action, nearby, resolvedOutcome })
+  const prompt = buildTurnPrompt({ story, character: characterSheet, recentTurns, scene, action, nearby, npcsHere, resolvedOutcome })
   const raw = await generate({ system: DM_SYSTEM_PROMPT, prompt })
 
   return parseDmResponse(raw)
@@ -65,8 +67,9 @@ export async function narrateResolvedEvent({ scene, resolvedOutcome }) {
 
 const INTRO_MAX_ATTEMPTS = 2
 // The intro's JSON payload is much larger than a per-turn update (a full
-// location graph), so give it a generous output budget to avoid truncation.
-const INTRO_OPTIONS = { num_predict: 1500 }
+// location graph with richer descriptions, plus a roster of NPCs), so give
+// it a generous output budget to avoid truncation.
+const INTRO_OPTIONS = { num_predict: 2200 }
 
 export async function generateGameIntro({ characters }) {
   const prompt = buildIntroPrompt(characters)
@@ -87,6 +90,7 @@ export async function generateGameIntro({ characters }) {
       locations: Array.isArray(updates.locations) ? updates.locations : [],
       startLocationId: updates.startLocationId || '',
       scene: updates.scene || '',
+      npcs: Array.isArray(updates.npcs) ? updates.npcs : [],
     }
 
     const isComplete = result.locations.length > 0 && result.premise && result.scene

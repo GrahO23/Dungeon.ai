@@ -38,12 +38,17 @@ export function writeEnemy(gameStateDir, slug, data, content = '') {
   writeMarkdown(enemyPath(gameStateDir, slug), data, content)
 }
 
-// The enemies/NPCs currently present at a location and still alive — the
-// bounded context fed to intent classification and combat resolution.
+// The enemies/NPCs currently present at a location — the bounded context fed
+// to intent classification, combat resolution, and per-turn dialogue. Hostile
+// entries must still be alive to count (a defeated enemy is no longer a valid
+// target); friendly NPCs are never gated on hp, since a friendly NPC meant
+// purely for conversation may have no combat stats (and no hp) at all.
 export function listEnemiesAtLocation(gameStateDir, locationId) {
-  return listEnemies(gameStateDir).filter(
-    (enemy) => enemy.data.locationId === locationId && (enemy.data.hp ?? 0) > 0,
-  )
+  return listEnemies(gameStateDir).filter((enemy) => {
+    if (enemy.data.locationId !== locationId) return false
+    if (enemy.data.hostile === false) return true
+    return (enemy.data.hp ?? 0) > 0
+  })
 }
 
 // Display-only counterpart to listEnemiesAtLocation — includes defeated
@@ -61,6 +66,7 @@ export function listPublicEnemiesAtLocation(gameStateDir, locationId) {
       maxHp: data.maxHp ?? data.hp ?? 0,
       hostile: data.hostile !== false,
       status: data.status,
+      personality: data.personality,
     }))
 }
 
