@@ -16,24 +16,42 @@ match it exactly rather than improvising a shape that looks similar.
 
 ## Process
 
-1. **Establish the premise.** Derive (from the user's request, or invent if they only gave a
-   genre/vibe) a setting, tone, a one-line premise, a main quest, and at least one concrete win
-   condition — a specific, checkable way the scenario ends in victory (defeat a named boss,
-   recover a named item and escape, negotiate a truce — pick something a Dungeon Master could
-   look at the game state and say yes/no to). Note a second, non-combat path to victory when it
-   fits the premise (Dungeon.ai's combat/skill-check rules are deterministic server-side, but nothing
-   requires every scenario to be solved by fighting).
+0. **Ask what's missing before designing anything.** If the user's request already pins down a
+   detail below, don't re-ask it — only fill gaps. Use `AskUserQuestion` (single call, multiple
+   questions) to cover whatever of these the request left open:
+   - **Style/theme** — a genre, tone, or specific inspiration (e.g. "gothic horror fishing
+     village," "high fantasy heist," "Fighting-Fantasy-style deathtrap dungeon"). If the user gave
+     no direction at all, offer a few concrete, varied pitches to choose from (plus "surprise me")
+     rather than a blank "what genre?" question.
+   - **Map size** — small (4-5 locations), medium (6-7), or large (8, the schema's current max —
+     see `references/schema.md`). This drives how many rooms/areas to sketch in step 2.
+   - **Number of players** — the recommended party size (e.g. 2, 3-4, 5-6), which drives
+     `scenario.json.recommendedPartySize` and the enemy/boss tuning in step 3.
+   - **Difficulty** — easy, medium, or hard, feeding `scenario.json.difficulty` and enemy stats.
 
-2. **Design the map.** Sketch 4-8 locations forming one connected graph, starting from an
-   obvious entry point and ending at a climax location where the main quest resolves. Every
-   `connectsTo` link must go both ways. Give each location a `questHook` when it ties to a story
-   beat, an empty string otherwise.
+   Skip this step entirely only if the user's request already specifies all four (e.g. "a small,
+   easy 2-player pirate-themed scenario") — then proceed straight to step 1.
+
+1. **Establish the premise.** Derive a setting, tone, a one-line premise, a main quest, and at
+   least one concrete win condition — a specific, checkable way the scenario ends in victory
+   (defeat a named boss, recover a named item and escape, negotiate a truce — pick something a
+   Dungeon Master could look at the game state and say yes/no to) — from the style/theme settled
+   in step 0. Note a second, non-combat path to victory when it fits the premise (Dungeon.ai's
+   combat/skill-check rules are deterministic server-side, but nothing requires every scenario to
+   be solved by fighting).
+
+2. **Design the map.** Sketch a connected graph sized per step 0's answer (4-5 locations for
+   small, 6-7 for medium, 8 for large — 8 is the schema's current ceiling; if the user explicitly
+   wants more, say so and either split into a bigger single graph carefully or flag the tradeoff
+   before exceeding it), starting from an obvious entry point and ending at a climax location
+   where the main quest resolves. Every `connectsTo` link must go both ways. Give each location a
+   `questHook` when it ties to a story beat, an empty string otherwise.
 
 3. **Populate the cast.** Write 3-5 enemies/NPCs, placed at specific `locationId`s from the map.
    Include at least one `kind: boss` at the climax location, tuned (per `references/schema.md`'s
-   guidance) to be a real fight but winnable for the party size in `scenario.json`. Include at
-   least one `hostile: false` NPC if the premise has room for a quest-giver, informant, or
-   merchant — not every location needs to be a fight.
+   guidance and step 0's difficulty/party-size answers) to be a real fight but winnable for the
+   chosen party size. Include at least one `hostile: false` NPC if the premise has room for a
+   quest-giver, informant, or merchant — not every location needs to be a fight.
 
 4. **Write the DM Plan and Story So Far.** 3-5 ordered beats in `story.md`'s `## DM Plan` (never
    shown to players — it steers the DM's narration turn to turn) that lead from the opening scene
