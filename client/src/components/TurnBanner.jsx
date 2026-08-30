@@ -5,7 +5,7 @@ export function TurnBanner({ currentCharacter, myCharacter, thinking }) {
   const isMine = currentCharacter === myCharacter
   return (
     <div className={`turn-banner${isMine ? ' mine' : ''}`}>
-      {isMine ? "It's your turn" : `Waiting for ${currentCharacter}…`}
+      {isMine ? `It's your turn, ${myCharacter}` : `Waiting for ${currentCharacter}…`}
     </div>
   )
 }

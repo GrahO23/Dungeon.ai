@@ -13,6 +13,12 @@ export const CLASSES = [
   'Wizard',
 ]
 
+// Classes with real spellcasting — purely a display distinction (their known
+// abilities are shown as a "Spellbook" rather than "Special Moves"); the
+// server stores both identically (server/src/rules/constants.js#CASTER_CLASSES
+// is the source of truth for which classes get which starting list).
+export const CASTER_CLASSES = new Set(['Bard', 'Cleric', 'Druid', 'Paladin', 'Ranger', 'Sorcerer', 'Warlock', 'Wizard'])
+
 const FIRST_NAMES = [
   'Alara', 'Borin', 'Cassian', 'Dorwyn', 'Elowen', 'Fenwick', 'Gwyneth', 'Hadrian',
   'Isolde', 'Joren', 'Kestrel', 'Liora', 'Magnus', 'Nyssa', 'Oswin', 'Perrin',

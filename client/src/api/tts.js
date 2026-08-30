@@ -4,9 +4,10 @@ let playing = false
 async function playNext() {
   if (playing || queue.length === 0) return
   playing = true
-  const { text, voice, speed } = queue.shift()
+  const { text, voice, speed, onTiming } = queue.shift()
 
   try {
+    const startedAt = performance.now()
     const res = await fetch('/api/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -15,6 +16,7 @@ async function playNext() {
     if (!res.ok) throw new Error(`TTS request failed (${res.status})`)
 
     const blob = await res.blob()
+    onTiming?.(Math.round(performance.now() - startedAt))
     const url = URL.createObjectURL(blob)
     const audio = new Audio(url)
 
@@ -32,8 +34,8 @@ async function playNext() {
   }
 }
 
-export function speak(text, { voice, speed } = {}) {
+export function speak(text, { voice, speed, onTiming } = {}) {
   if (!text?.trim()) return
-  queue.push({ text, voice, speed })
+  queue.push({ text, voice, speed, onTiming })
   playNext()
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { createCharacter, generateBackstory } from '../api/rest.js'
 import { CLASSES, generateRandomName } from '../utils/characterOptions.js'
+import { modifier } from '../utils/stats.js'
 
 const STAT_NAMES = ['str', 'dex', 'con', 'int', 'wis', 'cha']
 
@@ -71,39 +72,48 @@ export function CharacterForm({ onCreated }) {
         <div className="input-with-button">
           <input value={name} onChange={(e) => setName(e.target.value)} required />
           <button type="button" onClick={() => setName(generateRandomName())}>
-            🎲 Generate
+            🎲 Roll
           </button>
         </div>
       </label>
 
       <label>
         Class
-        <select value={characterClass} onChange={(e) => setCharacterClass(e.target.value)} required>
-          <option value="" disabled>
-            Choose a class…
-          </option>
+        <div className="class-picker">
           {CLASSES.map((c) => (
-            <option key={c} value={c}>
+            <button
+              key={c}
+              type="button"
+              className={`class-pill${characterClass === c ? ' active' : ''}`}
+              onClick={() => setCharacterClass(c)}
+            >
               {c}
-            </option>
+            </button>
           ))}
-        </select>
+        </div>
       </label>
 
       <label>
         Backstory
-        <textarea value={backstory} onChange={(e) => setBackstory(e.target.value)} rows={3} />
+        <textarea
+          value={backstory}
+          onChange={(e) => setBackstory(e.target.value)}
+          rows={3}
+          placeholder="Where do they come from? What do they want?"
+        />
         <button
           type="button"
+          className="btn-text"
           onClick={handleGenerateBackstory}
           disabled={!canGenerateBackstory}
           title={!name.trim() || !characterClass ? 'Enter a name and class first' : undefined}
         >
-          {generatingBackstory ? 'Generating…' : '✨ Generate backstory'}
+          {generatingBackstory ? 'Generating…' : '✦ Generate backstory'}
         </button>
       </label>
 
       <div className="stats-row">
+        <span>Ability Scores</span>
         <button type="button" onClick={() => setStats(rollStats())}>
           Roll for me
         </button>
@@ -111,7 +121,9 @@ export function CharacterForm({ onCreated }) {
           <ul className="stats-list">
             {STAT_NAMES.map((s) => (
               <li key={s}>
-                {s.toUpperCase()}: {stats[s]}
+                <span>{s.toUpperCase()}</span>
+                <span className="stat-value">{stats[s]}</span>
+                <span className="stat-mod">{modifier(stats[s])}</span>
               </li>
             ))}
           </ul>
@@ -120,7 +132,7 @@ export function CharacterForm({ onCreated }) {
 
       {error && <p className="error">{error}</p>}
 
-      <button type="submit" disabled={submitting || !name.trim()}>
+      <button type="submit" className="btn-primary" disabled={submitting || !name.trim() || !characterClass}>
         {submitting ? 'Creating…' : 'Create Character'}
       </button>
     </form>

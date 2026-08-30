@@ -1,8 +1,22 @@
 :root {
-  color-scheme: light dark;
-  font: 16px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: dark;
+  font: 16px/1.5 'Spectral', Georgia, serif;
 }
 
 body {
   margin: 0;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3a322a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
 }

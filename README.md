@@ -12,6 +12,7 @@ No cloud services, no database: everything runs on your own machine and can be r
   ollama pull qwen3:8b
   ```
   Prefer a general instruction-tuned/chat model over a coder-specialized one (like `qwen2.5-coder`) — it narrates a story much better. `qwen3:8b` is the current default (a good balance of speed and quality); `qwen3:14b` narrates slightly better but takes noticeably longer per turn — set `OLLAMA_MODEL=qwen3:14b` if you'd rather trade speed for quality.
+- (Optional) An `ANTHROPIC_API_KEY` to add Claude Haiku 4.5 / Claude Sonnet 5 as DM model options alongside your local Ollama models — useful if you want faster or higher-quality narration than local inference gives you, at the cost of an internet connection and per-token billing. Get one at [console.anthropic.com](https://console.anthropic.com/) (Settings → API Keys) — **this is separate from a claude.ai Pro/Max subscription**; the Developer API bills its own pay-as-you-go credits (you'll need to add a payment method there) even if you sign in with the same account. Once you have a key: `ANTHROPIC_API_KEY=sk-ant-... npm run dev`. Without it, the Claude options simply don't appear in the model dropdown and nothing else changes.
 - (Optional, for the DM's voice) Run once:
   ```
   bash scripts/setup-tts.sh
@@ -39,13 +40,34 @@ npm run start
 ```
 Open `http://localhost:3001`.
 
+## Playing over the internet with Tailscale Funnel
+
+If your friends aren't on your local network, [Tailscale](https://tailscale.com/) Funnel exposes your server at a public `https://<machine>.<tailnet>.ts.net` URL — friends just open the link, no Tailscale install or account on their end.
+
+**One-time setup:**
+1. Install Tailscale and sign in: `curl -fsSL https://tailscale.com/install.sh | sh` then `sudo tailscale up`.
+2. Enable HTTPS certificates for your tailnet at [login.tailscale.com/admin/dns](https://login.tailscale.com/admin/dns) — Funnel requires this.
+
+**Each time you want to host:**
+```bash
+npm run build && npm run start   # single-port production server, port 3001
+scripts/funnel.sh on             # prints the public URL to share
+```
+When you're done:
+```bash
+scripts/funnel.sh off
+```
+`scripts/funnel.sh status` shows whether Funnel is currently on.
+
+Dungeon.ai has no login system (see below) — Funnel makes that URL genuinely public for as long as it's on, so turn it off when the session's over.
+
 ## How it works
 
 1. **Create characters** — each player opens the app, picks a class from a dropdown, and can either type a name or click 🎲 to generate a random one, roll stats, and either write a backstory or click ✨ to have the DM generate one for them.
 2. **Start the game** — once at least one character exists, the host clicks "Start Game." The DM generates a world (setting, factions), a connected map of 4-6 named locations, a story (premise, main quest, and its own private plan for how the adventure should unfold), and an opening scene — this takes 10-20 seconds — then welcomes the party before play begins. Turn order is set from the order characters were created.
 3. **Play** — players take turns typing what their character does. The current player's browser is the only one that can send an action; everyone else sees a live narration log update in real time as the DM (Ollama) responds and the turn passes to the next player. If you ran the TTS setup step, the DM's narration is also read aloud in a deep narrator voice — toggle it off any time with the 🔊 button, or open ⚙️ next to it to change the voice or its speed (see [Voice settings](#voice-settings) below).
 
-A "DM model" dropdown (visible in both the lobby and in-game) lists every model you have pulled in Ollama and lets anyone switch which one is powering the DM, any time — including mid-game. It's a shared setting everyone sees, since there's only one DM for the whole session.
+A "DM model" dropdown (visible in both the lobby and in-game) lists every model you have pulled in Ollama, plus Claude Haiku 4.5 / Claude Sonnet 5 if you've set an `ANTHROPIC_API_KEY` (see [Prerequisites](#prerequisites)), and lets anyone switch which one is powering the DM, any time — including mid-game. It's a shared setting everyone sees, since there's only one DM for the whole session.
 
 There's no login system — a browser "claims" whichever character it's playing (remembered locally), which only really matters if two people are sharing one screen. This is meant for a small group of trusted players on a local network, not the open internet.
 

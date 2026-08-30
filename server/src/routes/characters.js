@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { characterExists, listPublicCharacters, slugify, writeCharacter } from '../state/characters.js'
 import { generateBackstory } from '../ollama/dm.js'
 import { computeAC } from '../rules/combat.js'
-import { CLASS_SKILL_BONUS, CLASS_STARTING_WEAPON } from '../rules/constants.js'
+import { CLASS_SKILL_BONUS, CLASS_STARTING_WEAPON, CLASS_STARTING_ABILITIES } from '../rules/constants.js'
 
 export function createCharactersRouter({ gameStateDir, hub }) {
   const router = Router()
@@ -53,6 +53,7 @@ export function createCharactersRouter({ gameStateDir, hub }) {
       ac: computeAC({ stats: resolvedStats }),
       stats: resolvedStats,
       skills: { ...(CLASS_SKILL_BONUS[resolvedClass] ?? {}) },
+      abilities: (CLASS_STARTING_ABILITIES[resolvedClass] ?? []).map((a) => ({ ...a })),
       inventory: [
         { name: 'Healing Potion', qty: 2, type: 'consumable', effect: { hp: 8 } },
         { name: 'Bandage', qty: 3, type: 'consumable', effect: { hp: 3 } },

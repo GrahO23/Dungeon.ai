@@ -6,8 +6,10 @@ import { ModelSelector } from '../components/ModelSelector.jsx'
 import { CharacterSheet } from '../components/CharacterSheet.jsx'
 import { InventoryPanel } from '../components/InventoryPanel.jsx'
 import { MapView } from '../components/MapView.jsx'
+import { EnemiesPanel } from '../components/EnemiesPanel.jsx'
 import { CharacterCard } from '../components/CharacterCard.jsx'
 import { SettingsPanel } from '../components/SettingsPanel.jsx'
+import { SectionDivider } from '../components/SectionDivider.jsx'
 
 export function Game() {
   const {
@@ -24,6 +26,8 @@ export function Game() {
     voiceEnabled,
     toggleVoice,
     map,
+    enemies,
+    connected,
   } = useGame()
 
   const currentCharacter = turnOrder[currentTurnIndex]
@@ -32,10 +36,19 @@ export function Game() {
   const otherCharacters = characters.filter((c) => c.name !== myCharacter)
 
   return (
-    <div className="game">
-      <div className="game-header">
-        <h1>Dungeon.ai</h1>
-        <div className="game-header-actions">
+    <div className="app-shell-inner">
+      <div className="app-header">
+        <div className="app-logo">
+          <span className="app-logo-mark">D</span>
+          <span className="app-logo-word">
+            Dungeon<span>.ai</span>
+          </span>
+        </div>
+        <div className="app-header-actions">
+          <span className="conn-status">
+            <span className="conn-dot" style={{ background: connected ? '#6b7a4a' : '#a89a86' }} />
+            {connected ? 'Connected' : 'Connecting…'}
+          </span>
           <button type="button" className="voice-toggle" onClick={toggleVoice} title="Toggle DM voice">
             {voiceEnabled ? '🔊' : '🔇'}
           </button>
@@ -43,71 +56,85 @@ export function Game() {
         </div>
       </div>
 
-      <ModelSelector />
+      <div className="game">
+        <ModelSelector />
 
-      {!myCharacter && (
-        <div className="claim-picker">
-          <p>Which character are you playing?</p>
-          <select defaultValue="" onChange={(e) => e.target.value && claimCharacter(e.target.value)}>
-            <option value="" disabled>
-              Choose a character…
-            </option>
-            {characters.map((c) => (
-              <option key={c.slug} value={c.name}>
-                {c.name}
+        {!myCharacter && (
+          <div className="claim-picker">
+            <p>Which character are you playing?</p>
+            <select defaultValue="" onChange={(e) => e.target.value && claimCharacter(e.target.value)}>
+              <option value="" disabled>
+                Choose a character…
               </option>
-            ))}
-          </select>
-        </div>
-      )}
+              {characters.map((c) => (
+                <option key={c.slug} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
-      <div className="game-layout">
-        <div className="game-main">
-          <p className="scene">{currentScene}</p>
+        <div className="game-layout">
+          <div className="game-main">
+            <div className="scene-banner">
+              <p className="scene">{currentScene}</p>
+            </div>
 
-          <TurnBanner currentCharacter={currentCharacter} myCharacter={myCharacter} thinking={thinking} />
+            <TurnBanner currentCharacter={currentCharacter} myCharacter={myCharacter} thinking={thinking} />
 
-          <NarrationLog turns={recentTurns} />
+            <NarrationLog turns={recentTurns} />
 
-          {lastError && <p className="error">{lastError}</p>}
+            {lastError && <p className="error">{lastError}</p>}
 
-          <ActionInput disabled={!isMyTurn || !myCharacter} onSubmit={sendAction} />
-        </div>
+            <ActionInput disabled={!isMyTurn || !myCharacter} onSubmit={sendAction} />
+          </div>
 
-        <div className="game-sidebar">
-          {myCharacterSheet && (
+          <div className="game-sidebar">
+            {myCharacterSheet && (
+              <section>
+                <h2>Character</h2>
+                <SectionDivider />
+                <CharacterSheet character={myCharacterSheet} />
+              </section>
+            )}
+
+            {myCharacterSheet && (
+              <section>
+                <h2>Inventory</h2>
+                <SectionDivider />
+                <InventoryPanel
+                  inventory={myCharacterSheet.inventory}
+                  disabled={!isMyTurn}
+                  onUseItem={(name) => sendAction(`use ${name}`)}
+                />
+              </section>
+            )}
+
             <section>
-              <h2>Character</h2>
-              <CharacterSheet character={myCharacterSheet} />
+              <h2>Enemies</h2>
+              <SectionDivider />
+              <EnemiesPanel enemies={enemies} />
             </section>
-          )}
 
-          {myCharacterSheet && (
             <section>
-              <h2>Inventory</h2>
-              <InventoryPanel
-                inventory={myCharacterSheet.inventory}
-                disabled={!isMyTurn}
-                onUseItem={(name) => sendAction(`use ${name}`)}
-              />
+              <h2>Map</h2>
+              <SectionDivider />
+              <MapView map={map} />
             </section>
-          )}
 
-          <section>
-            <h2>Map</h2>
-            <MapView map={map} />
-          </section>
-
-          {otherCharacters.length > 0 && (
-            <section>
-              <h2>Party</h2>
-              <ul className="roster">
-                {otherCharacters.map((c) => (
-                  <CharacterCard key={c.slug} character={c} />
-                ))}
-              </ul>
-            </section>
-          )}
+            {otherCharacters.length > 0 && (
+              <section>
+                <h2>Party</h2>
+                <SectionDivider />
+                <ul className="roster">
+                  {otherCharacters.map((c) => (
+                    <CharacterCard key={c.slug} character={c} />
+                  ))}
+                </ul>
+              </section>
+            )}
+          </div>
         </div>
       </div>
     </div>

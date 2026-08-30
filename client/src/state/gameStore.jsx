@@ -29,6 +29,7 @@ const initialState = {
   model: '',
   availableModels: [],
   map: { currentLocationId: null, visited: [], frontier: [] },
+  enemies: [],
 }
 
 function reducer(state, action) {
@@ -75,6 +76,15 @@ function reducer(state, action) {
       return { ...state, model: action.payload.model }
     case 'map:updated':
       return { ...state, map: action.payload }
+    case 'enemies:updated':
+      return { ...state, enemies: action.payload.enemies }
+    case 'speech:timed':
+      return {
+        ...state,
+        recentTurns: state.recentTurns.map((t) =>
+          t.turnNumber === action.payload.turnNumber ? { ...t, speechMs: action.payload.speechMs } : t,
+        ),
+      }
     case 'models:loaded':
       return { ...state, availableModels: action.payload.models, model: state.model || action.payload.current }
     default:
@@ -117,7 +127,12 @@ export function GameProvider({ children }) {
     const ws = connectWebSocket((msg) => {
       dispatch(msg)
       if (msg.type === 'narration:new' && voiceEnabledRef.current) {
-        speak(msg.payload.dmText, { voice: voiceIdRef.current, speed: voiceSpeedRef.current })
+        const turnNumber = msg.payload.turnNumber
+        speak(msg.payload.dmText, {
+          voice: voiceIdRef.current,
+          speed: voiceSpeedRef.current,
+          onTiming: (speechMs) => dispatch({ type: 'speech:timed', payload: { turnNumber, speechMs } }),
+        })
       }
     })
     wsRef.current = ws

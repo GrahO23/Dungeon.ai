@@ -2,8 +2,18 @@ import { useState } from 'react'
 import { useGame } from '../state/gameStore.jsx'
 
 export function SettingsPanel() {
-  const { voiceEnabled, toggleVoice, availableVoices, voiceId, voiceSpeed, setVoiceId, setVoiceSpeed } = useGame()
+  const {
+    voiceEnabled,
+    toggleVoice,
+    availableVoices,
+    voiceId,
+    voiceSpeed,
+    setVoiceId,
+    setVoiceSpeed,
+    sessionStatus,
+  } = useGame()
   const [open, setOpen] = useState(false)
+  const locked = sessionStatus !== 'setup'
 
   return (
     <div className="settings-panel-wrapper">
@@ -24,7 +34,7 @@ export function SettingsPanel() {
             <select
               value={voiceId}
               onChange={(e) => setVoiceId(e.target.value)}
-              disabled={!availableVoices.length}
+              disabled={!availableVoices.length || locked}
             >
               {availableVoices.length === 0 && <option value="">(no voices installed)</option>}
               {availableVoices.map((v) => (
@@ -34,6 +44,7 @@ export function SettingsPanel() {
               ))}
             </select>
           </label>
+          {locked && <p className="settings-hint">Voice can only be changed before the game starts.</p>}
 
           <label className="settings-row">
             Speed: {voiceSpeed.toFixed(2)}x

@@ -5,7 +5,7 @@ import { readStory, writeStory } from '../state/story.js'
 import { readMap, writeMap, getCurrentLocation, getExploredMap } from '../state/map.js'
 import { appendTurn } from '../state/log.js'
 import { generateGameIntro } from '../ollama/dm.js'
-import { listEnemies, writeEnemy } from '../state/enemies.js'
+import { listEnemies, writeEnemy, listPublicEnemiesHere } from '../state/enemies.js'
 import { scenarioDir, scenarioExists } from '../state/scenarios.js'
 import { getSection, removeSection } from '../state/sections.js'
 
@@ -102,7 +102,11 @@ export function createSetupRouter({ gameStateDir, scenariosDir, hub, gameState }
       currentScene: intro.scene,
     })
 
-    hub.broadcast('session:started', { ...nextState, map: getExploredMap(readMap(gameStateDir).data) })
+    hub.broadcast('session:started', {
+      ...nextState,
+      map: getExploredMap(readMap(gameStateDir).data),
+      enemies: listPublicEnemiesHere(gameStateDir),
+    })
     hub.broadcast('narration:new', {
       turnNumber: INTRO_TURN_NUMBER,
       character: INTRO_SPEAKER,
@@ -169,7 +173,11 @@ export function createSetupRouter({ gameStateDir, scenariosDir, hub, gameState }
         currentScene: startScene,
       })
 
-      hub.broadcast('session:started', { ...nextState, map: getExploredMap(readMap(gameStateDir).data) })
+      hub.broadcast('session:started', {
+        ...nextState,
+        map: getExploredMap(readMap(gameStateDir).data),
+        enemies: listPublicEnemiesHere(gameStateDir),
+      })
       hub.broadcast('narration:new', {
         turnNumber: INTRO_TURN_NUMBER,
         character: INTRO_SPEAKER,

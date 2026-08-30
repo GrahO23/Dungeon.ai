@@ -11,7 +11,9 @@ function Router() {
 function App() {
   return (
     <GameProvider>
-      <Router />
+      <div className="app-shell">
+        <Router />
+      </div>
     </GameProvider>
   )
 }

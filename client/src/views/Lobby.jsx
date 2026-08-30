@@ -5,6 +5,7 @@ import { CharacterCard } from '../components/CharacterCard.jsx'
 import { ModelSelector } from '../components/ModelSelector.jsx'
 import { StartingProgress } from '../components/StartingProgress.jsx'
 import { SettingsPanel } from '../components/SettingsPanel.jsx'
+import { SectionDivider } from '../components/SectionDivider.jsx'
 import { startGame, getScenarios, startScenario } from '../api/rest.js'
 
 export function Lobby() {
@@ -38,62 +39,86 @@ export function Lobby() {
   }
 
   return (
-    <div className="lobby">
-      <div className="lobby-header">
-        <h1>Dungeon.ai</h1>
-        <SettingsPanel />
+    <div className="app-shell-inner">
+      <div className="app-header">
+        <div className="app-logo">
+          <span className="app-logo-mark">D</span>
+          <span className="app-logo-word">
+            Dungeon<span>.ai</span>
+          </span>
+        </div>
+        <div className="app-header-actions">
+          <span className="conn-status">
+            <span className="conn-dot" style={{ background: connected ? '#6b7a4a' : '#a89a86' }} />
+            {connected ? 'Connected' : 'Connecting…'}
+          </span>
+          <SettingsPanel />
+        </div>
       </div>
-      <p className="conn-status">{connected ? 'Connected' : 'Connecting…'}</p>
-      <ModelSelector />
 
-      <section>
-        <h2>Party ({characters.length})</h2>
-        <ul className="roster">
-          {characters.map((c) => (
-            <CharacterCard key={c.slug} character={c} />
-          ))}
-        </ul>
-      </section>
+      <div className="lobby">
+        <div className="lobby-intro">
+          <h1>Gather Your Party</h1>
+          <p>Create a character, then choose an adventure to begin.</p>
+        </div>
 
-      {starting ? (
-        <StartingProgress />
-      ) : (
-        <>
-          <CharacterForm onCreated={(character) => claimCharacter(character.name)} />
+        <ModelSelector />
 
-          {(error || lastError) && <p className="error">{error || lastError}</p>}
+        <section>
+          <h2>The Party — {characters.length}</h2>
+          <SectionDivider />
+          <ul className="roster">
+            {characters.map((c) => (
+              <CharacterCard key={c.slug} character={c} />
+            ))}
+          </ul>
+        </section>
 
-          {scenarios.length > 0 && (
-            <div className="scenario-picker">
-              <h2>Or start a pre-built scenario</h2>
-              <select value={selectedScenario} onChange={(e) => setSelectedScenario(e.target.value)}>
-                <option value="">Choose a scenario…</option>
-                {scenarios.map((s) => (
-                  <option key={s.slug} value={s.slug}>
-                    {s.title} ({s.difficulty})
-                  </option>
-                ))}
-              </select>
-              {selectedScenario && (
-                <p className="scenario-description">
-                  {scenarios.find((s) => s.slug === selectedScenario)?.description}
-                </p>
-              )}
-              <button
-                className="start-game"
-                disabled={characters.length === 0 || !selectedScenario}
-                onClick={handleStartScenario}
-              >
-                Start Scenario
-              </button>
-            </div>
-          )}
+        {starting ? (
+          <StartingProgress />
+        ) : (
+          <>
+            <CharacterForm onCreated={(character) => claimCharacter(character.name)} />
 
-          <button className="start-game" disabled={characters.length === 0} onClick={handleStart}>
-            Start Game
-          </button>
-        </>
-      )}
+            {(error || lastError) && <p className="error">{error || lastError}</p>}
+
+            {scenarios.length > 0 && (
+              <div className="scenario-picker">
+                <h2>Choose an Adventure</h2>
+                <p>Pick a pre-built scenario, or let the DM improvise a world from scratch.</p>
+                <SectionDivider />
+                <div className="scenario-list">
+                  {scenarios.map((s) => (
+                    <button
+                      key={s.slug}
+                      type="button"
+                      className={`scenario-option${selectedScenario === s.slug ? ' active' : ''}`}
+                      onClick={() => setSelectedScenario(s.slug)}
+                    >
+                      <div>
+                        <div className="scenario-option-title">{s.title}</div>
+                        <div className="scenario-option-description">{s.description}</div>
+                      </div>
+                      <span className="scenario-option-difficulty">{s.difficulty}</span>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  className="start-game btn-primary"
+                  disabled={characters.length === 0 || !selectedScenario}
+                  onClick={handleStartScenario}
+                >
+                  Start Scenario
+                </button>
+              </div>
+            )}
+
+            <button className="start-game" disabled={characters.length === 0} onClick={handleStart}>
+              Start Improvised Game
+            </button>
+          </>
+        )}
+      </div>
     </div>
   )
 }

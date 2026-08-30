@@ -1,8 +1,8 @@
 import { appendTurn } from '../state/log.js'
-import { applyCharacterUpdate, readCharacter, slugify } from '../state/characters.js'
+import { applyCharacterUpdate, readCharacter, listPublicCharacters, slugify } from '../state/characters.js'
 import { appendStoryNote } from '../state/story.js'
 import { applyLocationUpdate, readMap, getCurrentLocation, getExploredMap } from '../state/map.js'
-import { enemyExists } from '../state/enemies.js'
+import { enemyExists, listPublicEnemiesHere } from '../state/enemies.js'
 import { generateTurnResponse, narrateResolvedEvent } from '../ollama/dm.js'
 import { classifyAction } from '../ollama/intent.js'
 import {
@@ -37,13 +37,14 @@ export function createTurnEngine({ gameStateDir, hub, gameState }) {
     return { turnOrder: [...partyNames, ...hostileNames], combatActive: hostileNames.length > 0 }
   }
 
-  async function narrateAndAdvance({ actorName, playerText, resolvedOutcome, narrate }) {
+  async function narrateAndAdvance({ actorName, playerText, resolvedOutcome, narrate, turnStartedAt }) {
     const state = gameState.get()
     const turnNumber = state.turnNumber + 1
 
     hub.broadcast('turn:thinking', { character: actorName })
 
     let narration
+    const llmStartedAt = Date.now()
     try {
       narration = await narrate(state)
     } catch (err) {
@@ -52,6 +53,7 @@ export function createTurnEngine({ gameStateDir, hub, gameState }) {
       hub.broadcast('turn:changed', { currentTurnIndex: state.currentTurnIndex, character: actorName })
       return false
     }
+    const llmMs = Date.now() - llmStartedAt
 
     appendTurn(gameStateDir, {
       turnNumber,
@@ -83,12 +85,27 @@ export function createTurnEngine({ gameStateDir, hub, gameState }) {
 
     gameState.update({ turnOrder, combatActive, currentTurnIndex: nextIndex, turnNumber, currentScene: nextScene })
 
+    // Every character change this turn — resolved-outcome hp/inventory deltas
+    // (applied earlier, in resolvePlayerIntent/resolveEnemyTurn) and any
+    // narration-driven characterUpdates (applied just above) — is already on
+    // disk by this point, so a single fresh roster covers both. Without this,
+    // clients only ever saw the roster from game start (routes/characters.js
+    // broadcasts it once, at creation) and hp/inventory/abilities panels
+    // silently went stale the moment a fight started.
+    hub.broadcast('roster:updated', { characters: listPublicCharacters(gameStateDir) })
+    // Same reasoning as roster:updated above — enemy hp (from a resolved
+    // attack) and which enemies are even "here" (after a locationUpdate this
+    // turn) both need to reach clients live, not just once at game start.
+    hub.broadcast('enemies:updated', { enemies: listPublicEnemiesHere(gameStateDir) })
+
     hub.broadcast('narration:new', {
       turnNumber,
       character: actorName,
       playerText,
       dmText: narration.text,
       rollText: resolvedOutcome,
+      llmMs,
+      serverMs: Date.now() - turnStartedAt,
     })
     hub.broadcast('turn:changed', { currentTurnIndex: nextIndex, character: turnOrder[nextIndex] })
     return true
@@ -99,6 +116,7 @@ export function createTurnEngine({ gameStateDir, hub, gameState }) {
   // aren't connected clients — until control lands back on a real player.
   async function runEnemyTurnsUntilPlayer() {
     for (;;) {
+      const turnStartedAt = Date.now()
       const state = gameState.get()
       const actorName = state.turnOrder[state.currentTurnIndex]
       if (!actorName || !isEnemyName(gameStateDir, actorName)) return
@@ -115,6 +133,7 @@ export function createTurnEngine({ gameStateDir, hub, gameState }) {
           text: await narrateResolvedEvent({ scene: currentState.currentScene, resolvedOutcome: resolved.resolvedOutcome }),
           updates: {},
         }),
+        turnStartedAt,
       })
       if (!ok) return
     }
@@ -138,7 +157,13 @@ export function createTurnEngine({ gameStateDir, hub, gameState }) {
     }
 
     processing = true
+    const turnStartedAt = Date.now()
     try {
+      // Broadcast before the intent-classification call (itself a separate,
+      // smaller LLM call — see ollama/intent.js) so players see "the DM is
+      // thinking" immediately, not just once narration generation starts.
+      hub.broadcast('turn:thinking', { character })
+
       const enemiesHere = currentLocationEnemies(gameStateDir)
       const characterSheet = readCharacter(gameStateDir, slugify(character))
       const intent = await classifyAction({ actionText: text, character: characterSheet, enemiesHere })
@@ -158,6 +183,7 @@ export function createTurnEngine({ gameStateDir, hub, gameState }) {
           })
           return { text: narration, updates }
         },
+        turnStartedAt,
       })
       if (!ok) {
         return reject(ws, 'The DM had trouble responding. Please try again.')

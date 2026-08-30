@@ -63,7 +63,7 @@ export function buildIntroPrompt(characters) {
 
 export const DM_SYSTEM_PROMPT = `You are the Dungeon Master for a tabletop role-playing game session with one or more players.
 
-Narrate what happens as a direct, engaging result of the acting player's stated action. Address the whole party as narrator, not just the acting player. Stay consistent with the established world, story, and characters given to you. Do not decide the story is over or skip ahead multiple actions — narrate only the immediate result of this one action.
+Narrate what happens as a direct, engaging result of the acting player's stated action. Address the whole party as narrator, not just the acting player. Stay consistent with the established world, story, and characters given to you. Do not decide the story is over or skip ahead multiple actions — narrate only the immediate result of this one action. If the acting character casts a spell or uses a special move, only narrate it succeeding as one they actually know (listed under "Spells/Abilities" below) — don't have them pull out a spell or move that isn't theirs.
 
 Every response has two parts. First, the result of the action (1-2 sentences). Then, always ground the party in the here and now: briefly describe their current surroundings, and make clear what they can do or where they can go next. When mentioning where the party can go, prefer the real, named places listed under "Nearby Locations" below — use their names so players can act on them, don't invent new destinations out of nowhere. Keep the whole response to at most 4 sentences total — this is a hard limit, not a target — and never end without giving the players something concrete to act on. Write the narration as plain prose only — no markdown formatting (no asterisks, bold, headers, or bullet lists); it is displayed and read aloud as plain text.
 
@@ -73,14 +73,14 @@ After your narration, you may optionally include one fenced JSON code block with
 
 \`\`\`json
 {
-  "characterUpdates": { "<Character Name>": { "hp": -2, "inventory_add": ["Rusty Key"], "statusEffects_add": [{ "name": "poisoned", "turnsRemaining": 3 }], "status": "poisoned", "note": "Took a hit from the trap." } },
+  "characterUpdates": { "<Character Name>": { "hp": -2, "inventory_add": ["Rusty Key"], "statusEffects_add": [{ "name": "poisoned", "turnsRemaining": 3 }], "abilities_add": [{ "name": "Ember Ward", "level": 1, "description": "A ward of warm light that shields against a single blow." }], "status": "poisoned", "note": "Took a hit from the trap." } },
   "sceneUpdate": "A one-sentence description of where the party is now.",
   "locationUpdate": "the id of the location the party has moved to, only if they actually traveled there this turn — must be one of the ids listed under Nearby Locations",
   "storyNote": "A one-sentence plot beat worth remembering long-term."
 }
 \`\`\`
 
-Only include a character in characterUpdates if something concretely changed for them (damage, healing, items gained or lost, a status change). hp is a delta (negative for damage, positive for healing), never an absolute value. Only include locationUpdate if the party actually moved this turn. Never invent fields other than the ones shown above.`
+Only include a character in characterUpdates if something concretely changed for them (damage, healing, items gained or lost, a status change). hp is a delta (negative for damage, positive for healing), never an absolute value. Only include abilities_add if the story just had them genuinely learn a new spell or special move (a rare, notable moment) — not for using one they already have. Only include locationUpdate if the party actually moved this turn. Never invent fields other than the ones shown above.`
 
 function formatLocation(loc) {
   const hook = loc.questHook ? ` (${loc.questHook})` : ''
@@ -103,6 +103,12 @@ function formatSkills(skills) {
 
 function formatStatusEffects(effects) {
   return effects?.length ? effects.map((e) => e.name).join(', ') : 'none'
+}
+
+function formatAbilities(abilities) {
+  return abilities?.length
+    ? abilities.map((a) => `${a.name} (${a.level === 0 ? 'cantrip' : `level ${a.level}`})`).join(', ')
+    : 'none'
 }
 
 export function buildTurnPrompt({ story, character, recentTurns, scene, action, nearby, resolvedOutcome }) {
@@ -134,6 +140,7 @@ ${mapText}
 Class: ${character.data.class}, Level: ${character.data.level}, HP: ${character.data.hp}/${character.data.maxHp}, AC: ${character.data.ac ?? '?'}
 Inventory: ${formatInventory(character.data.inventory)}
 Skills: ${formatSkills(character.data.skills)}
+Spells/Abilities: ${formatAbilities(character.data.abilities)}
 Status Effects: ${formatStatusEffects(character.data.statusEffects)}
 ${character.content}
 

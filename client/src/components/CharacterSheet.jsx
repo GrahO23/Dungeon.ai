@@ -1,8 +1,10 @@
+import { CASTER_CLASSES } from '../utils/characterOptions.js'
+import { modifier } from '../utils/stats.js'
+
 const STAT_ORDER = ['str', 'dex', 'con', 'int', 'wis', 'cha']
 
-function modifier(score) {
-  const mod = Math.floor((score - 10) / 2)
-  return mod >= 0 ? `+${mod}` : `${mod}`
+function abilityLevelLabel(level) {
+  return level === 0 ? 'Cantrip' : `Lv ${level}`
 }
 
 export function CharacterSheet({ character }) {
@@ -10,6 +12,8 @@ export function CharacterSheet({ character }) {
 
   const skills = Object.entries(character.skills ?? {}).filter(([, bonus]) => bonus)
   const statusEffects = character.statusEffects ?? []
+  const abilities = character.abilities ?? []
+  const abilitiesLabel = CASTER_CLASSES.has(character.class) ? 'Spellbook' : 'Special Moves'
   const hpPct = character.maxHp ? Math.max(0, Math.min(100, (character.hp / character.maxHp) * 100)) : 0
 
   return (
@@ -35,10 +39,12 @@ export function CharacterSheet({ character }) {
       </div>
 
       {Object.keys(character.stats ?? {}).length > 0 && (
-        <ul className="stats-list">
+        <ul className="stats-list character-sheet-stats">
           {STAT_ORDER.filter((s) => character.stats[s] != null).map((s) => (
             <li key={s}>
-              {s.toUpperCase()} {character.stats[s]} ({modifier(character.stats[s])})
+              <span>{s.toUpperCase()}</span>
+              <span className="stat-value">{character.stats[s]}</span>
+              <span className="stat-mod">{modifier(character.stats[s])}</span>
             </li>
           ))}
         </ul>
@@ -51,6 +57,19 @@ export function CharacterSheet({ character }) {
               {name} +{bonus}
             </span>
           ))}
+        </div>
+      )}
+
+      {abilities.length > 0 && (
+        <div className="abilities-section">
+          <div className="abilities-heading">{abilitiesLabel}</div>
+          <ul className="abilities-list">
+            {abilities.map((a) => (
+              <li key={a.name} className="ability-badge" title={a.description}>
+                {a.name} <span className="ability-level">{abilityLevelLabel(a.level)}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

@@ -56,6 +56,7 @@ export function listPublicCharacters(gameStateDir) {
     equippedWeapon: data.equippedWeapon,
     status: data.status,
     statusEffects: data.statusEffects ?? [],
+    abilities: data.abilities ?? [],
     luck: data.luck ?? 0,
   }))
 }
@@ -90,6 +91,8 @@ function removeInventoryItem(inventory, name, qty = 1) {
 //   skills?: { [name]: number } (merged in as deltas on top of existing bonuses),
 //   statusEffects_add?: { name: string, turnsRemaining?: number|null }[],
 //   statusEffects_remove?: string[] (names),
+//   abilities_add?: { name: string, level: number, description?: string }[] (a newly learned spell or special move),
+//   abilities_remove?: string[] (names),
 //   status?: string,
 //   luck?: number (delta, clamped to >= 0),
 //   note?: string,
@@ -130,6 +133,15 @@ export function applyCharacterUpdate(gameStateDir, name, update) {
     nextData.statusEffects = (nextData.statusEffects ?? []).filter(
       (effect) => !update.statusEffects_remove.includes(effect.name),
     )
+  }
+  if (Array.isArray(update.abilities_add) && update.abilities_add.length) {
+    const existing = (nextData.abilities ?? []).filter(
+      (ability) => !update.abilities_add.some((added) => added.name === ability.name),
+    )
+    nextData.abilities = [...existing, ...update.abilities_add]
+  }
+  if (Array.isArray(update.abilities_remove) && update.abilities_remove.length) {
+    nextData.abilities = (nextData.abilities ?? []).filter((ability) => !update.abilities_remove.includes(ability.name))
   }
   if (update.status) {
     nextData.status = update.status
