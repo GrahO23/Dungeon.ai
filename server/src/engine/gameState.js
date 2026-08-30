@@ -8,6 +8,7 @@ const DEFAULTS = {
   turnOrder: [],
   currentTurnIndex: 0,
   turnNumber: 0,
+  combatActive: false,
 }
 
 export function createGameState(gameStateDir) {

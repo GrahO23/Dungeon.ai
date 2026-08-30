@@ -33,6 +33,23 @@ export async function startGame() {
   return data
 }
 
+export async function getScenarios() {
+  const res = await fetch('/api/scenarios')
+  if (!res.ok) throw new Error('Failed to load scenarios')
+  return res.json()
+}
+
+export async function startScenario(slug) {
+  const res = await fetch('/api/setup/start-scenario', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug }),
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Failed to start scenario')
+  return data
+}
+
 export async function getModels() {
   const res = await fetch('/api/models')
   if (!res.ok) throw new Error('Failed to load models')

@@ -7,9 +7,11 @@ import { createCharactersRouter } from './routes/characters.js'
 import { createSetupRouter } from './routes/setup.js'
 import { createTtsRouter } from './routes/tts.js'
 import { createModelsRouter } from './routes/models.js'
+import { createScenariosRouter } from './routes/scenarios.js'
 import { createHub } from './ws/hub.js'
 import { listPublicCharacters } from './state/characters.js'
 import { readRecentTurns, parseTurnBlock } from './state/log.js'
+import { readMap, getExploredMap } from './state/map.js'
 import { createGameState } from './engine/gameState.js'
 import { createTurnEngine } from './engine/turnEngine.js'
 import { getCurrentModel } from './ollama/modelState.js'
@@ -26,6 +28,7 @@ const hub = createHub(server, {
     ...gameState.get(),
     recentTurns: readRecentTurns(config.gameStateDir, 8).map(parseTurnBlock),
     model: getCurrentModel(),
+    map: getExploredMap(readMap(config.gameStateDir).data),
   }),
   onMessage: (ws, msg) => {
     if (msg?.type === 'player:action') {
@@ -38,9 +41,10 @@ turnEngine = createTurnEngine({ gameStateDir: config.gameStateDir, hub, gameStat
 app.use(express.json())
 app.use('/api', pingRouter)
 app.use('/api', createCharactersRouter({ gameStateDir: config.gameStateDir, hub }))
-app.use('/api', createSetupRouter({ gameStateDir: config.gameStateDir, hub, gameState }))
+app.use('/api', createSetupRouter({ gameStateDir: config.gameStateDir, scenariosDir: config.scenariosDir, hub, gameState }))
 app.use('/api', createTtsRouter())
 app.use('/api', createModelsRouter({ hub }))
+app.use('/api', createScenariosRouter({ scenariosDir: config.scenariosDir }))
 app.use(express.static(config.clientDistDir))
 
 function getLanAddress() {

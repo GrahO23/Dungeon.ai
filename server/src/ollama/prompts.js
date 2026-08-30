@@ -47,11 +47,13 @@ Narrate what happens as a direct, engaging result of the acting player's stated 
 
 Every response has two parts. First, the result of the action (1-2 sentences). Then, always ground the party in the here and now: briefly describe their current surroundings, and make clear what they can do or where they can go next. When mentioning where the party can go, prefer the real, named places listed under "Nearby Locations" below — use their names so players can act on them, don't invent new destinations out of nowhere. Keep the whole response to at most 4 sentences total — this is a hard limit, not a target — and never end without giving the players something concrete to act on. Write the narration as plain prose only — no markdown formatting (no asterisks, bold, headers, or bullet lists); it is displayed and read aloud as plain text.
 
+If a "Resolved Outcome" section is given below, it is the deterministic result of a dice roll the server already made — narrate exactly that outcome (hit/miss, damage, success/failure) and never describe a different result. Do not include an hp value in characterUpdates for the character or enemy the Resolved Outcome already covers — the server applies that automatically; you may still add other flavor changes (items found, a new status effect, a note) for anyone involved.
+
 After your narration, you may optionally include one fenced JSON code block with updates implied by what just happened. Every field is optional — omit the whole block if nothing needs to change:
 
 \`\`\`json
 {
-  "characterUpdates": { "<Character Name>": { "hp": -2, "inventory_add": ["Rusty Key"], "status": "poisoned", "note": "Took a hit from the trap." } },
+  "characterUpdates": { "<Character Name>": { "hp": -2, "inventory_add": ["Rusty Key"], "statusEffects_add": [{ "name": "poisoned", "turnsRemaining": 3 }], "status": "poisoned", "note": "Took a hit from the trap." } },
   "sceneUpdate": "A one-sentence description of where the party is now.",
   "locationUpdate": "the id of the location the party has moved to, only if they actually traveled there this turn — must be one of the ids listed under Nearby Locations",
   "storyNote": "A one-sentence plot beat worth remembering long-term."
@@ -65,14 +67,30 @@ function formatLocation(loc) {
   return `${loc.name} [id: ${loc.id}]: ${loc.description}${hook}`
 }
 
-export function buildTurnPrompt({ story, character, recentTurns, scene, action, nearby }) {
+function formatInventoryItem(item) {
+  if (typeof item === 'string') return item
+  return item.qty > 1 ? `${item.name} x${item.qty}` : item.name
+}
+
+function formatInventory(inventory) {
+  return inventory?.length ? inventory.map(formatInventoryItem).join(', ') : 'none'
+}
+
+function formatSkills(skills) {
+  const entries = Object.entries(skills ?? {}).filter(([, bonus]) => bonus)
+  return entries.length ? entries.map(([name, bonus]) => `${name} +${bonus}`).join(', ') : 'none'
+}
+
+function formatStatusEffects(effects) {
+  return effects?.length ? effects.map((e) => e.name).join(', ') : 'none'
+}
+
+export function buildTurnPrompt({ story, character, recentTurns, scene, action, nearby, resolvedOutcome }) {
   const recentTurnsText = recentTurns.length
     ? recentTurns
         .map((t) => `Turn ${t.turnNumber} — ${t.character}\nPlayer: ${t.playerText}\nDM: ${t.dmText}`)
         .join('\n\n')
     : '(no turns yet — this is the first action of the game)'
-
-  const inventory = character.data.inventory?.length ? character.data.inventory.join(', ') : 'none'
 
   const mapText = nearby?.current
     ? `Current location: ${formatLocation(nearby.current)}\n` +
@@ -80,6 +98,8 @@ export function buildTurnPrompt({ story, character, recentTurns, scene, action, 
         ? `Reachable from here:\n${nearby.connected.map((loc) => `- ${formatLocation(loc)}`).join('\n')}`
         : 'No other locations are reachable from here yet.')
     : '(no map established yet)'
+
+  const outcomeSection = resolvedOutcome ? `\n\n## Resolved Outcome\n${resolvedOutcome}` : ''
 
   return `## Story
 ${story.content || '(no story established yet)'}
@@ -91,15 +111,54 @@ ${scene || '(not yet established)'}
 ${mapText}
 
 ## Acting Character: ${character.data.name}
-Class: ${character.data.class}, Level: ${character.data.level}, HP: ${character.data.hp}/${character.data.maxHp}
-Inventory: ${inventory}
+Class: ${character.data.class}, Level: ${character.data.level}, HP: ${character.data.hp}/${character.data.maxHp}, AC: ${character.data.ac ?? '?'}
+Inventory: ${formatInventory(character.data.inventory)}
+Skills: ${formatSkills(character.data.skills)}
+Status Effects: ${formatStatusEffects(character.data.statusEffects)}
 ${character.content}
 
 ## Recent Turns
 ${recentTurnsText}
 
 ## This Turn
-${character.data.name} says: "${action}"
+${character.data.name} says: "${action}"${outcomeSection}
 
 Narrate what happens next.`
+}
+
+export const INTENT_SYSTEM_PROMPT = `You classify a tabletop role-playing game player's action into a structured type, for a server that resolves dice rolls deterministically before the Dungeon Master narrates. Output ONLY a single JSON object — no prose, no markdown, no code fences, nothing before or after it.
+
+Choose exactly one "type":
+- attack: the player is trying to physically fight or strike a specific hostile creature named under "Enemies & NPCs Here".
+- skill-check: the player is attempting something uncertain that calls for an ability check — persuading, sneaking, searching, perceiving, picking a lock, disarming a trap, climbing, and similar. Pick the closest "skill": persuasion, deception, intimidation, performance, stealth, acrobatics, sleightOfHand, perception, insight, survival, medicine, animalHandling, investigation, arcana, history, nature, religion, athletics.
+- item-use: the player is explicitly using, drinking, or applying a specific item from their own inventory.
+- move: the player is trying to travel to a different, named location.
+- dialogue: the player is talking, roleplaying, or doing something with no mechanical uncertainty.
+- other: anything that doesn't fit the above.
+
+Output exactly this JSON shape: {"type": "attack|skill-check|item-use|move|dialogue|other", "target": "the enemy/NPC/location/door being acted on, or empty string", "skill": "skill name for skill-check, or empty string", "item": "item name for item-use, or empty string", "difficulty": "easy, medium, or hard — your best guess for a skill-check's difficulty, or empty string"}
+
+Only choose "attack" or "skill-check" against a target when it is actually named under "Enemies & NPCs Here" or clearly present in the scene. If unsure, prefer "dialogue".`
+
+export function buildIntentPrompt({ actionText, character, enemiesHere }) {
+  const enemiesText = enemiesHere?.length
+    ? enemiesHere.map((e) => `- ${e.data.name} (${e.data.kind ?? 'enemy'}), HP ${e.data.hp}/${e.data.maxHp}`).join('\n')
+    : '(none)'
+
+  return `## Acting Character: ${character.data.name} (${character.data.class})
+Inventory: ${formatInventory(character.data.inventory)}
+
+## Enemies & NPCs Here
+${enemiesText}
+
+## Action
+${character.data.name} says: "${actionText}"
+
+Classify this action.`
+}
+
+export const EVENT_SYSTEM_PROMPT = `You are the Dungeon Master narrating a single resolved game event to the players — for example an enemy's turn in combat. You are given the deterministic mechanical outcome that already happened; narrate it vividly in 1-3 sentences, plain prose only, no markdown. Stay consistent with the current scene. Do not invent a different outcome than the one given — narrate exactly what already happened.`
+
+export function buildEventPrompt({ scene, resolvedOutcome }) {
+  return `## Current Scene\n${scene || '(not yet established)'}\n\n## Resolved Outcome\n${resolvedOutcome}\n\nNarrate this event.`
 }

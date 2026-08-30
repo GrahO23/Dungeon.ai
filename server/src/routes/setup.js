@@ -1,10 +1,13 @@
 import { Router } from 'express'
 import { listCharacters } from '../state/characters.js'
-import { writeWorld } from '../state/world.js'
-import { writeStory } from '../state/story.js'
-import { writeMap } from '../state/map.js'
+import { readWorld, writeWorld } from '../state/world.js'
+import { readStory, writeStory } from '../state/story.js'
+import { readMap, writeMap, getCurrentLocation, getExploredMap } from '../state/map.js'
 import { appendTurn } from '../state/log.js'
 import { generateGameIntro } from '../ollama/dm.js'
+import { listEnemies, writeEnemy } from '../state/enemies.js'
+import { scenarioDir, scenarioExists } from '../state/scenarios.js'
+import { getSection, removeSection } from '../state/sections.js'
 
 const INTRO_TURN_NUMBER = 0
 const INTRO_SPEAKER = 'Dungeon Master'
@@ -40,7 +43,7 @@ function resolveMap(intro) {
   return { currentLocationId: startLocationId, locations }
 }
 
-export function createSetupRouter({ gameStateDir, hub, gameState }) {
+export function createSetupRouter({ gameStateDir, scenariosDir, hub, gameState }) {
   const router = Router()
 
   router.post('/setup/start', async (req, res) => {
@@ -99,7 +102,7 @@ export function createSetupRouter({ gameStateDir, hub, gameState }) {
       currentScene: intro.scene,
     })
 
-    hub.broadcast('session:started', nextState)
+    hub.broadcast('session:started', { ...nextState, map: getExploredMap(readMap(gameStateDir).data) })
     hub.broadcast('narration:new', {
       turnNumber: INTRO_TURN_NUMBER,
       character: INTRO_SPEAKER,
@@ -107,6 +110,79 @@ export function createSetupRouter({ gameStateDir, hub, gameState }) {
       dmText: intro.narration,
     })
     res.status(200).json({ state: nextState })
+  })
+
+  router.post('/setup/start-scenario', (req, res) => {
+    const state = gameState.get()
+    if (state.sessionStatus !== 'setup') {
+      return res.status(409).json({ error: 'the game has already started' })
+    }
+
+    const characters = listCharacters(gameStateDir)
+    if (characters.length === 0) {
+      return res.status(400).json({ error: 'at least one character is required to start' })
+    }
+
+    const { slug } = req.body ?? {}
+    if (typeof slug !== 'string' || !scenarioExists(scenariosDir, slug)) {
+      return res.status(404).json({ error: `no such scenario: ${slug}` })
+    }
+
+    hub.broadcast('setup:started', {})
+
+    try {
+      const sourceDir = scenarioDir(scenariosDir, slug)
+
+      const world = readWorld(sourceDir)
+      writeWorld(gameStateDir, { title: world.data.title }, world.content)
+
+      const map = readMap(sourceDir).data
+      writeMap(gameStateDir, { currentLocationId: map.currentLocationId, locations: map.locations })
+
+      const story = readStory(sourceDir)
+      const openingNarration =
+        getSection(story.content, 'Opening Narration') || 'Welcome, adventurers. Your journey begins.'
+      writeStory(
+        gameStateDir,
+        { ...story.data, status: 'playing' },
+        removeSection(story.content, 'Opening Narration'),
+      )
+
+      for (const enemy of listEnemies(sourceDir)) {
+        writeEnemy(gameStateDir, enemy.slug, enemy.data, enemy.content)
+      }
+
+      const startScene = getCurrentLocation(map)?.description || ''
+
+      appendTurn(gameStateDir, {
+        turnNumber: INTRO_TURN_NUMBER,
+        character: INTRO_SPEAKER,
+        playerText: '',
+        dmText: openingNarration,
+      })
+
+      const nextState = gameState.update({
+        sessionStatus: 'playing',
+        turnOrder: characters.map((c) => c.data.name),
+        currentTurnIndex: 0,
+        turnNumber: 0,
+        currentScene: startScene,
+      })
+
+      hub.broadcast('session:started', { ...nextState, map: getExploredMap(readMap(gameStateDir).data) })
+      hub.broadcast('narration:new', {
+        turnNumber: INTRO_TURN_NUMBER,
+        character: INTRO_SPEAKER,
+        playerText: '',
+        dmText: openingNarration,
+      })
+      res.status(200).json({ state: nextState })
+    } catch (err) {
+      console.error('Failed to load scenario:', err)
+      const error = 'Failed to load the scenario. Please try again.'
+      hub.broadcast('setup:failed', { error })
+      res.status(500).json({ error })
+    }
   })
 
   return router

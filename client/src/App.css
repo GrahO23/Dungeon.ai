@@ -23,6 +23,24 @@
   padding: 0.75rem 1rem;
 }
 
+.scenario-picker {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #444;
+  border-radius: 8px;
+}
+
+.scenario-picker h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.scenario-description {
+  font-size: 0.85rem;
+  opacity: 0.85;
+  margin: 0.5rem 0;
+}
+
 .character-form {
   display: grid;
   gap: 0.75rem;
@@ -92,10 +110,172 @@
 }
 
 .game {
-  max-width: 640px;
+  max-width: 1080px;
   margin: 0 auto;
   padding: 2rem 1rem;
   font-family: system-ui, sans-serif;
+}
+
+.game-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.game-main {
+  min-width: 0;
+}
+
+.game-sidebar {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.game-sidebar section {
+  border: 1px solid #444;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.game-sidebar h2 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 800px) {
+  .game-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.character-sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+
+.character-sheet-meta {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.character-sheet-row {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+  margin: 0.5rem 0;
+  flex-wrap: wrap;
+}
+
+.skills-list,
+.status-effects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.skill-badge,
+.status-badge {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: #333;
+}
+
+.status-badge {
+  background: #5a3a1a;
+}
+
+.inventory-panel {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.inventory-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.inventory-item button {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+}
+
+.inventory-empty {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  margin: 0;
+}
+
+.map-view {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.map-node {
+  border-left: 3px solid #555;
+  padding-left: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.map-node p {
+  margin: 0.15rem 0 0;
+  opacity: 0.8;
+}
+
+.map-node.current {
+  border-left-color: #4a8a4a;
+}
+
+.map-here {
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+.map-node.frontier {
+  opacity: 0.5;
+  border-left-style: dashed;
+}
+
+.hp-bar {
+  position: relative;
+  height: 1.4rem;
+  border-radius: 4px;
+  background: #333;
+  overflow: hidden;
+  font-size: 0.8rem;
+}
+
+.hp-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: #3a6a3a;
+  transition: width 0.2s ease;
+}
+
+.hp-bar-label {
+  position: relative;
+  display: block;
+  text-align: center;
+  line-height: 1.4rem;
+}
+
+.roll-line {
+  margin: 0 0 0.25rem;
+  font-size: 0.8rem;
+  opacity: 0.75;
+  font-style: italic;
 }
 
 .scene {

@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import { characterExists, listPublicCharacters, slugify, writeCharacter } from '../state/characters.js'
 import { generateBackstory } from '../ollama/dm.js'
+import { computeAC } from '../rules/combat.js'
+import { CLASS_SKILL_BONUS, CLASS_STARTING_WEAPON } from '../rules/constants.js'
 
 export function createCharactersRouter({ gameStateDir, hub }) {
   const router = Router()
@@ -38,15 +40,27 @@ export function createCharactersRouter({ gameStateDir, hub }) {
       return res.status(409).json({ error: 'a character with that name already exists' })
     }
 
+    const resolvedClass = characterClass?.trim() || 'Adventurer'
+    const resolvedStats = stats && typeof stats === 'object' ? stats : {}
+    const startingWeapon = CLASS_STARTING_WEAPON[resolvedClass]
+
     const data = {
       name: name.trim(),
-      class: characterClass?.trim() || 'Adventurer',
+      class: resolvedClass,
       level: 1,
       hp: 10,
       maxHp: 10,
-      stats: stats && typeof stats === 'object' ? stats : {},
-      inventory: [],
+      ac: computeAC({ stats: resolvedStats }),
+      stats: resolvedStats,
+      skills: { ...(CLASS_SKILL_BONUS[resolvedClass] ?? {}) },
+      inventory: [
+        { name: 'Healing Potion', qty: 2, type: 'consumable', effect: { hp: 8 } },
+        { name: 'Bandage', qty: 3, type: 'consumable', effect: { hp: 3 } },
+      ],
+      equippedWeapon: startingWeapon?.name,
       status: 'active',
+      statusEffects: [],
+      luck: 1,
     }
     const content = `## Backstory\n${backstory?.trim() || '_No backstory provided._'}\n\n## Notes\n`
     writeCharacter(gameStateDir, slug, data, content)

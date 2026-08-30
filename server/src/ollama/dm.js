@@ -6,6 +6,8 @@ import {
   buildIntroPrompt,
   BACKSTORY_SYSTEM_PROMPT,
   buildBackstoryPrompt,
+  EVENT_SYSTEM_PROMPT,
+  buildEventPrompt,
 } from './prompts.js'
 import { readStory } from '../state/story.js'
 import { readCharacter, slugify } from '../state/characters.js'
@@ -19,7 +21,7 @@ const RECENT_TURNS_FOR_CONTEXT = 6
 // verbose response reach players and TTS unbounded.
 const MAX_NARRATION_SENTENCES = 4
 
-function capSentences(text, maxSentences = MAX_NARRATION_SENTENCES) {
+export function capSentences(text, maxSentences = MAX_NARRATION_SENTENCES) {
   const sentences = text.match(/[^.!?]+[.!?]+(?:\s+|$)/g)
   if (!sentences || sentences.length <= maxSentences) return text.trim()
   return sentences.slice(0, maxSentences).join('').trim()
@@ -38,16 +40,27 @@ function parseDmResponse(raw) {
   }
 }
 
-export async function generateTurnResponse({ character, action, gameStateDir, scene }) {
+export async function generateTurnResponse({ character, action, gameStateDir, scene, resolvedOutcome }) {
   const story = readStory(gameStateDir)
   const characterSheet = readCharacter(gameStateDir, slugify(character))
   const recentTurns = readRecentTurns(gameStateDir, RECENT_TURNS_FOR_CONTEXT).map(parseTurnBlock)
   const nearby = getNearbyLocations(readMap(gameStateDir).data)
 
-  const prompt = buildTurnPrompt({ story, character: characterSheet, recentTurns, scene, action, nearby })
+  const prompt = buildTurnPrompt({ story, character: characterSheet, recentTurns, scene, action, nearby, resolvedOutcome })
   const raw = await generate({ system: DM_SYSTEM_PROMPT, prompt })
 
   return parseDmResponse(raw)
+}
+
+const EVENT_MAX_SENTENCES = 3
+
+// Narrates a deterministically-resolved event with no acting player behind
+// it (an enemy's combat turn) — a much smaller prompt than a full player
+// turn since it needs no character/inventory/skills context.
+export async function narrateResolvedEvent({ scene, resolvedOutcome }) {
+  const prompt = buildEventPrompt({ scene, resolvedOutcome })
+  const raw = await generate({ system: EVENT_SYSTEM_PROMPT, prompt })
+  return capSentences(raw.trim(), EVENT_MAX_SENTENCES)
 }
 
 const INTRO_MAX_ATTEMPTS = 2

@@ -49,6 +49,24 @@ A "DM model" dropdown (visible in both the lobby and in-game) lists every model 
 
 There's no login system — a browser "claims" whichever character it's playing (remembered locally), which only really matters if two people are sharing one screen. This is meant for a small group of trusted players on a local network, not the open internet.
 
+Combat, skill checks (persuasion, stealth, perception, lockpicking, and the like), and item use are resolved with real dice server-side — the DM narrates the outcome, but never invents whether an attack hits or a check succeeds. Player actions stay plain typed text ("I attack the goblin," "I try to sneak past the guard"); the server figures out what kind of action it is and rolls accordingly.
+
+## Pre-built scenarios
+
+Instead of "Start Game" (where the DM improvises a whole world on the spot), the Lobby also offers a dropdown of pre-built **scenarios** — a complete world, map, cast of enemies/NPCs, and quest, written in advance. Pick one and click "Start Scenario." A worked example, `scenarios/goblin-warren/`, ships with the repo.
+
+### Designing a new scenario with Claude Code
+
+This repo includes a Claude Code skill, `dungeon-scenario-designer`, that writes new scenarios for you. From a Claude Code session in this repo, just ask for one, e.g.:
+
+```
+Design a scenario for Dungeon.ai about a haunted lighthouse.
+```
+
+Claude will pick up the `dungeon-scenario-designer` skill automatically (any request to design/create a scenario, campaign, adventure, or quest for Dungeon.ai triggers it) and write a complete bundle to `scenarios/<slug>/` — a world, a connected map, 3-5 enemies/NPCs including a boss, a main quest with explicit win conditions, and an opening narration — all in the exact file format the game already reads, so it's playable immediately with no extra setup. Once it's done, restart the server (or just refresh the Lobby) and the new scenario appears in the picker.
+
+You can also invoke the skill directly by name (`/dungeon-scenario-designer`) if you want to steer it more explicitly, e.g. with a genre, tone, or party size in mind. See `.claude/skills/dungeon-scenario-designer/SKILL.md` for exactly what it does, and `.claude/skills/dungeon-scenario-designer/references/schema.md` for the underlying file format if you ever want to write or tweak a scenario by hand.
+
 ## Architecture
 
 ```
@@ -75,4 +93,4 @@ For the full design rationale, the WebSocket message protocol, and the build roa
 
 ## Project status
 
-Character creation, live multiplayer sync, the turn engine, real Ollama-powered DM narration, a generated opening scene at game start, and DM voice via local TTS are all working end-to-end. Turns take roughly 10–15 seconds with the default model — this is expected with local inference.
+Character creation, live multiplayer sync, the turn engine, real Ollama-powered DM narration, a generated opening scene at game start, DM voice via local TTS, deterministic combat/skill-check/item-use rules, persistent inventory and status effects, and pre-built scenarios (plus the Claude Code skill that authors them) are all working end-to-end. Turns take roughly 10–15 seconds with the default model — this is expected with local inference.

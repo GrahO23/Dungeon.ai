@@ -8,9 +8,10 @@ function logPath(gameStateDir) {
   return path.join(gameStateDir, FILE)
 }
 
-export function appendTurn(gameStateDir, { turnNumber, character, playerText, dmText }) {
+export function appendTurn(gameStateDir, { turnNumber, character, playerText, dmText, rollText }) {
   const playerLine = playerText ? `**Player:** ${playerText}\n` : ''
-  const block = `## Turn ${turnNumber} — ${character}\n${playerLine}**DM:** ${dmText}\n\n`
+  const rollLine = rollText ? `**Roll:** ${rollText}\n` : ''
+  const block = `## Turn ${turnNumber} — ${character}\n${playerLine}${rollLine}**DM:** ${dmText}\n\n`
   appendToFile(logPath(gameStateDir), block)
 }
 
@@ -30,11 +31,13 @@ export function readRecentTurns(gameStateDir, count = 8) {
 export function parseTurnBlock(block) {
   const header = block.match(/^## Turn (\d+) — (.+)$/m)
   const player = block.match(/^\*\*Player:\*\* (.+)$/m)
+  const roll = block.match(/^\*\*Roll:\*\* (.+)$/m)
   const dm = block.match(/^\*\*DM:\*\* ([\s\S]*)/m)
   return {
     turnNumber: header ? Number(header[1]) : null,
     character: header ? header[2].trim() : null,
     playerText: player ? player[1].trim() : '',
+    rollText: roll ? roll[1].trim() : '',
     dmText: dm ? dm[1].trim() : '',
   }
 }

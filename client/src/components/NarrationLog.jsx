@@ -8,6 +8,7 @@ export function NarrationLog({ turns }) {
               <strong>{turn.character}:</strong> {turn.playerText}
             </p>
           )}
+          {turn.rollText && <p className="roll-line">🎲 {turn.rollText}</p>}
           <p className="dm-line">{turn.dmText}</p>
         </div>
       ))}

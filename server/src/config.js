@@ -9,6 +9,7 @@ export const config = {
   ollamaHost: process.env.OLLAMA_HOST || 'http://localhost:11434',
   ollamaModel: process.env.OLLAMA_MODEL || 'qwen3:8b',
   gameStateDir: process.env.GAME_STATE_DIR || path.join(repoRoot, 'game-state'),
+  scenariosDir: process.env.SCENARIOS_DIR || path.join(repoRoot, 'scenarios'),
   clientDistDir: path.join(repoRoot, 'client', 'dist'),
   ttsEnabled: process.env.TTS_ENABLED !== 'false',
   piperBin: process.env.PIPER_BIN || path.join(repoRoot, 'vendor', 'piper', 'piper'),

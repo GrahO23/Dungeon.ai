@@ -18,15 +18,23 @@ function renderBody(locations, currentLocationId) {
 
 export function readMap(gameStateDir) {
   return readMarkdown(path.join(gameStateDir, FILE), {
-    data: { currentLocationId: null, locations: [] },
+    data: { currentLocationId: null, locations: [], visitedLocationIds: [] },
     content: '',
   })
 }
 
-export function writeMap(gameStateDir, { currentLocationId, locations, generatedAt = new Date().toISOString() }) {
+export function writeMap(
+  gameStateDir,
+  { currentLocationId, locations, visitedLocationIds, generatedAt = new Date().toISOString() },
+) {
   writeMarkdown(
     path.join(gameStateDir, FILE),
-    { currentLocationId, locations, generatedAt },
+    {
+      currentLocationId,
+      locations,
+      visitedLocationIds: visitedLocationIds ?? (currentLocationId ? [currentLocationId] : []),
+      generatedAt,
+    },
     renderBody(locations, currentLocationId),
   )
 }
@@ -59,6 +67,34 @@ export function applyLocationUpdate(gameStateDir, locationId) {
   if (!target || target.id === data.currentLocationId) return false
   if (current && !current.connectsTo?.includes(locationId)) return false
 
-  writeMap(gameStateDir, { ...data, currentLocationId: locationId })
+  const visitedLocationIds = [...new Set([...(data.visitedLocationIds ?? []), locationId])]
+  writeMap(gameStateDir, { ...data, currentLocationId: locationId, visitedLocationIds })
   return true
+}
+
+// The fog-of-war view sent to clients: full detail for every location the
+// party has actually been to, plus bare names for the unvisited locations
+// directly reachable from one of those (the "frontier") — never the whole
+// map, so an unexplored branch stays a mystery.
+export function getExploredMap(mapData) {
+  const visitedIds = mapData.visitedLocationIds?.length
+    ? mapData.visitedLocationIds
+    : mapData.currentLocationId
+      ? [mapData.currentLocationId]
+      : []
+
+  const visited = visitedIds.map((id) => getLocation(mapData, id)).filter(Boolean)
+
+  const frontierIds = new Set()
+  for (const loc of visited) {
+    for (const id of loc.connectsTo ?? []) {
+      if (!visitedIds.includes(id)) frontierIds.add(id)
+    }
+  }
+  const frontier = [...frontierIds]
+    .map((id) => getLocation(mapData, id))
+    .filter(Boolean)
+    .map((loc) => ({ id: loc.id, name: loc.name }))
+
+  return { currentLocationId: mapData.currentLocationId, visited, frontier }
 }

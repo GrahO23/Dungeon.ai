@@ -23,6 +23,7 @@ const initialState = {
   voiceEnabled: window.localStorage.getItem(VOICE_STORAGE_KEY) !== 'false',
   model: '',
   availableModels: [],
+  map: { currentLocationId: null, visited: [], frontier: [] },
 }
 
 function reducer(state, action) {
@@ -61,6 +62,8 @@ function reducer(state, action) {
       return { ...state, voiceEnabled: !state.voiceEnabled }
     case 'model:changed':
       return { ...state, model: action.payload.model }
+    case 'map:updated':
+      return { ...state, map: action.payload }
     case 'models:loaded':
       return { ...state, availableModels: action.payload.models, model: state.model || action.payload.current }
     default:

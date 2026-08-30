@@ -1,4 +1,7 @@
-const headingRegex = (heading) => new RegExp(`(^|\\n)## ${heading}\\n([\\s\\S]*?)(?=\\n## |$)`, 'm')
+// No 'm' flag: $ must mean the true end of content, not the end of every
+// line — otherwise a section is silently truncated at its first line break
+// (both multi-line paragraphs, and any bullet list past its first item).
+const headingRegex = (heading) => new RegExp(`(^|\\n)## ${heading}\\n([\\s\\S]*?)(?=\\n## |$)`)
 
 export function getSection(content, heading) {
   const match = content.match(headingRegex(heading))
@@ -12,6 +15,10 @@ export function setSection(content, heading, sectionBody) {
   }
   const separator = content.trim().length ? '\n\n' : ''
   return `${content.trim()}${separator}${block}`.trim()
+}
+
+export function removeSection(content, heading) {
+  return content.replace(headingRegex(heading), '').trim()
 }
 
 export function getBullets(content, heading) {

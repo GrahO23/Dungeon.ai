@@ -1,11 +1,11 @@
 import { config } from '../config.js'
 import { getCurrentModel } from './modelState.js'
 
-export async function generate({ model = getCurrentModel(), system, prompt, options }) {
+export async function generate({ model = getCurrentModel(), system, prompt, options, format }) {
   const res = await fetch(`${config.ollamaHost}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, system, prompt, stream: false, options }),
+    body: JSON.stringify({ model, system, prompt, stream: false, options, format }),
   })
 
   if (!res.ok) {
