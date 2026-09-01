@@ -13,6 +13,7 @@ export function CharacterSheet({ character }) {
   const skills = Object.entries(character.skills ?? {}).filter(([, bonus]) => bonus)
   const statusEffects = character.statusEffects ?? []
   const abilities = character.abilities ?? []
+  const spellSlots = Object.entries(character.spellSlots ?? {}).sort(([a], [b]) => Number(a) - Number(b))
   const abilitiesLabel = CASTER_CLASSES.has(character.class) ? 'Spellbook' : 'Special Moves'
   const hpPct = character.maxHp ? Math.max(0, Math.min(100, (character.hp / character.maxHp) * 100)) : 0
 
@@ -36,6 +37,11 @@ export function CharacterSheet({ character }) {
         <span>AC: {character.ac ?? '?'}</span>
         <span>Luck: {character.luck ?? 0}</span>
         {character.equippedWeapon && <span>Weapon: {character.equippedWeapon}</span>}
+        {spellSlots.map(([level, slot]) => (
+          <span key={level}>
+            L{level} Slots: {slot.current}/{slot.max}
+          </span>
+        ))}
       </div>
 
       {Object.keys(character.stats ?? {}).length > 0 && (

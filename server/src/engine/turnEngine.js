@@ -1,12 +1,13 @@
 import { appendTurn } from '../state/log.js'
-import { applyCharacterUpdate, readCharacter, listPublicCharacters, slugify } from '../state/characters.js'
+import { applyCharacterUpdate, readCharacter, listPublicCharacters, slugify, tickStatusEffects as tickCharacterStatusEffects } from '../state/characters.js'
 import { appendStoryNote } from '../state/story.js'
 import { applyLocationUpdate, readMap, getCurrentLocation, getExploredMap } from '../state/map.js'
-import { enemyExists, listPublicEnemiesHere } from '../state/enemies.js'
+import { enemyExists, listPublicEnemiesHere, tickStatusEffects as tickEnemyStatusEffects } from '../state/enemies.js'
 import { generateTurnResponse, narrateResolvedEvent } from '../ollama/dm.js'
 import { classifyAction } from '../ollama/intent.js'
 import {
   currentLocationEnemies,
+  currentLocationLootableEnemies,
   livingHostileEnemyNames,
   resolvePlayerIntent,
   resolveEnemyTurn,
@@ -63,8 +64,30 @@ export function createTurnEngine({ gameStateDir, hub, gameState }) {
       rollText: resolvedOutcome,
     })
 
+    // The DM prompt tells the model never to hand out a defeated enemy's
+    // loot on its own — that's the separate, deterministic "loot" action's
+    // job (actionResolver.js) — but prompt compliance isn't guaranteed
+    // (verified live: the model added a dropped item to inventory_add
+    // despite the instruction, both on the defeat turn *and*, redundantly,
+    // on the actor's own later loot turn, producing a duplicate). Enforce
+    // it here rather than trust the model: on the defeat turn, strip any
+    // inventory_add entry whose name still sits unclaimed on a lootable
+    // corpse at the location; on the actor's own "Loot:" turn, the
+    // deterministic resolver has *already* added exactly what should be
+    // added, so suppress that actor's inventory_add entirely.
+    const isLootTurn = resolvedOutcome?.startsWith('Loot:')
+    const unclaimedLootNames = new Set(currentLocationLootableEnemies(gameStateDir).flatMap((e) => e.data.loot ?? []))
     for (const [name, update] of Object.entries(narration.updates?.characterUpdates ?? {})) {
-      applyCharacterUpdate(gameStateDir, name, update)
+      const sanitizedUpdate = Array.isArray(update.inventory_add)
+        ? {
+            ...update,
+            inventory_add:
+              isLootTurn && name === actorName
+                ? []
+                : update.inventory_add.filter((item) => !unclaimedLootNames.has(typeof item === 'string' ? item : item.name)),
+          }
+        : update
+      applyCharacterUpdate(gameStateDir, name, sanitizedUpdate)
     }
     if (narration.updates?.storyNote) {
       appendStoryNote(gameStateDir, narration.updates.storyNote)
@@ -76,6 +99,14 @@ export function createTurnEngine({ gameStateDir, hub, gameState }) {
       } else {
         console.warn(`DM suggested an invalid locationUpdate: ${narration.updates.locationUpdate}`)
       }
+    }
+
+    // Once per the actor's own turn, not once per round — an approximation
+    // given the party's round-robin turnOrder has no separate round counter.
+    if (isEnemyName(gameStateDir, actorName)) {
+      tickEnemyStatusEffects(gameStateDir, actorName)
+    } else {
+      tickCharacterStatusEffects(gameStateDir, actorName)
     }
 
     const { turnOrder, combatActive } = syncCombatState(state.turnOrder)
@@ -165,8 +196,9 @@ export function createTurnEngine({ gameStateDir, hub, gameState }) {
       hub.broadcast('turn:thinking', { character })
 
       const enemiesHere = currentLocationEnemies(gameStateDir)
+      const lootableHere = currentLocationLootableEnemies(gameStateDir)
       const characterSheet = readCharacter(gameStateDir, slugify(character))
-      const intent = await classifyAction({ actionText: text, character: characterSheet, enemiesHere })
+      const intent = await classifyAction({ actionText: text, character: characterSheet, enemiesHere, lootableHere })
       const resolved = resolvePlayerIntent({ gameStateDir, characterName: character, intent })
 
       const ok = await narrateAndAdvance({

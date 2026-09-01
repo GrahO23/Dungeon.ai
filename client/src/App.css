@@ -755,6 +755,16 @@ select {
   color: var(--accent);
 }
 
+.enemy-loot-button {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: var(--bg-inset);
+  color: var(--accent);
+}
+
 .inventory-empty {
   font-size: 13px;
   color: var(--text-dim);
@@ -892,6 +902,23 @@ select {
 .enemy-badge-friendly {
   background: var(--friendly-bg);
   color: #b8d19a;
+}
+
+.enemy-damage-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.enemy-badge-resist {
+  background: var(--npc-bg);
+  color: #9db3d8;
+}
+
+.enemy-badge-vulnerable {
+  background: var(--enemy-bg);
+  color: var(--accent);
 }
 
 .enemy-card .hp-bar {

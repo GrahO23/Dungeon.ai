@@ -2,7 +2,20 @@ import { Router } from 'express'
 import { characterExists, listPublicCharacters, slugify, writeCharacter } from '../state/characters.js'
 import { generateBackstory } from '../ollama/dm.js'
 import { computeAC } from '../rules/combat.js'
-import { CLASS_SKILL_BONUS, CLASS_STARTING_WEAPON, CLASS_STARTING_ABILITIES } from '../rules/constants.js'
+import {
+  CLASS_SKILL_BONUS,
+  CLASS_STARTING_WEAPON,
+  CLASS_STARTING_ABILITIES,
+  CASTER_CLASSES,
+  SPELL_SLOTS_BY_LEVEL,
+} from '../rules/constants.js'
+
+// { [spellLevel]: { max, current } }, starting full — non-casters get {}.
+function startingSpellSlots(characterClass, level) {
+  if (!CASTER_CLASSES.has(characterClass)) return {}
+  const table = SPELL_SLOTS_BY_LEVEL[level] ?? SPELL_SLOTS_BY_LEVEL[1] ?? {}
+  return Object.fromEntries(Object.entries(table).map(([lvl, max]) => [lvl, { max, current: max }]))
+}
 
 export function createCharactersRouter({ gameStateDir, hub }) {
   const router = Router()
@@ -54,6 +67,7 @@ export function createCharactersRouter({ gameStateDir, hub }) {
       stats: resolvedStats,
       skills: { ...(CLASS_SKILL_BONUS[resolvedClass] ?? {}) },
       abilities: (CLASS_STARTING_ABILITIES[resolvedClass] ?? []).map((a) => ({ ...a })),
+      spellSlots: startingSpellSlots(resolvedClass, 1),
       inventory: [
         { name: 'Healing Potion', qty: 2, type: 'consumable', effect: { hp: 8 } },
         { name: 'Bandage', qty: 3, type: 'consumable', effect: { hp: 3 } },

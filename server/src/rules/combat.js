@@ -22,7 +22,9 @@ function resolveWeapon(character) {
 // attacker: a character ({ stats, class, equippedWeapon?, inventory? }) or an
 // enemy ({ attackBonus, damageDice }, no stats needed).
 // defender: a character or enemy, either with an explicit `ac` or `stats` to derive it from.
-export function resolveAttack({ attacker, defender, weapon } = {}) {
+// advantage/disadvantage/bonus: status-effect modifiers the caller computed
+// from both entities' statusEffects — see engine/actionResolver.js.
+export function resolveAttack({ attacker, defender, weapon, advantage = false, disadvantage = false, bonus = 0 } = {}) {
   const attackWeapon = weapon ?? (attacker.damageDice
     ? { name: attacker.name, damageDice: attacker.damageDice }
     : resolveWeapon(attacker))
@@ -37,8 +39,9 @@ export function resolveAttack({ attacker, defender, weapon } = {}) {
     abilityMod = attackWeapon.finesse ? Math.max(strMod, dexMod) : strMod
     attackBonus = abilityMod + (attacker.proficiencyBonus ?? DEFAULT_PROFICIENCY_BONUS)
   }
+  attackBonus += bonus
 
-  const roll = rollD20()
+  const roll = rollD20({ advantage, disadvantage })
   const targetAC = defender.ac ?? computeAC(defender)
   const critical = roll === 20
   const fumble = roll === 1

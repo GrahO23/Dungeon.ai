@@ -96,6 +96,11 @@ export function Game() {
                 <h2>Character</h2>
                 <SectionDivider />
                 <CharacterSheet character={myCharacterSheet} />
+                {Object.keys(myCharacterSheet.spellSlots ?? {}).length > 0 && (
+                  <button type="button" disabled={!isMyTurn} onClick={() => sendAction('rest')}>
+                    Rest
+                  </button>
+                )}
               </section>
             )}
 
@@ -114,7 +119,7 @@ export function Game() {
             <section>
               <h2>Enemies</h2>
               <SectionDivider />
-              <EnemiesPanel enemies={enemies} />
+              <EnemiesPanel enemies={enemies} disabled={!isMyTurn} onLoot={(name) => sendAction(`loot ${name}`)} />
             </section>
 
             <section>

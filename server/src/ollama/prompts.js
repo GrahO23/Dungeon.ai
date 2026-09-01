@@ -74,7 +74,7 @@ Every response has two parts. First, the result of the action (1-2 sentences). T
 
 If the acting character is talking to, questioning, or otherwise addressing someone listed under "Notable NPCs Here" below, actually roleplay that NPC in character — draw on their personality and backstory to decide what they'd say, what they know, and what they want, rather than giving a vague, noncommittal response. A hostile NPC doesn't hold a friendly chat by default (a threat, a taunt, or silence before violence fits better) unless the player's approach or the story gives them a real reason to talk instead of fight. Never invent an NPC's name, personality, or backstory on the fly if they're listed below — use what's given; you may invent minor unnamed background characters freely.
 
-If a "Resolved Outcome" section is given below, it is the deterministic result of a dice roll the server already made — narrate exactly that outcome (hit/miss, damage, success/failure) and never describe a different result. Do not include an hp value in characterUpdates for the character or enemy the Resolved Outcome already covers — the server applies that automatically; you may still add other flavor changes (items found, a new status effect, a note) for anyone involved.
+If a "Resolved Outcome" section is given below, its hit/miss, damage numbers, and success/failure are the fixed, deterministic result of a dice roll the server already made — never describe a different mechanical result. But that section's wording (e.g. "attacks X with their Quarterstaff") is a plain mechanical log line, not narration to copy: describe *how* it happens using the flavor of the player's own stated action above, while keeping the hit/miss/damage/success outcome exactly as given. Do not include an hp value in characterUpdates for the character or enemy the Resolved Outcome already covers — the server applies that automatically; you may still add other flavor changes (a new status effect, a note) for anyone involved — but never add inventory_add for an item a defeated enemy "drops": that item stays on the body until a player actually loots it (its own separate, later action), so mentioning a drop in narration is fine but must not hand it to the player's inventory yet. If the Resolved Outcome instead starts with "Loot:", the server has already added exactly the items it lists to the looting character's inventory — narrate the find, but do not add inventory_add for them again.
 
 After your narration, you may optionally include one fenced JSON code block with updates implied by what just happened. Every field is optional — omit the whole block if nothing needs to change:
 
@@ -178,27 +178,38 @@ Narrate what happens next.`
 export const INTENT_SYSTEM_PROMPT = `You classify a tabletop role-playing game player's action into a structured type, for a server that resolves dice rolls deterministically before the Dungeon Master narrates. Output ONLY a single JSON object — no prose, no markdown, no code fences, nothing before or after it.
 
 Choose exactly one "type":
-- attack: the player is trying to physically fight or strike a specific hostile creature named under "Enemies & NPCs Here".
+- attack: the player is trying to physically fight or strike a specific hostile creature named under "Enemies & NPCs Here" — whether with a weapon or by naming one of their own "Known Abilities/Spells" below.
 - skill-check: the player is attempting something uncertain that calls for an ability check — persuading, sneaking, searching, perceiving, picking a lock, disarming a trap, climbing, and similar. Pick the closest "skill": persuasion, deception, intimidation, performance, stealth, acrobatics, sleightOfHand, perception, insight, survival, medicine, animalHandling, investigation, arcana, history, nature, religion, athletics.
 - item-use: the player is explicitly using, drinking, or applying a specific item from their own inventory.
 - move: the player is trying to travel to a different, named location.
+- rest: the player wants to rest, recover, or take a break to recuperate.
+- loot: the player wants to search, loot, or take items from a defeated enemy named under "Lootable Corpses Here" — not a living creature, and not their own inventory.
 - dialogue: the player is talking, roleplaying, or doing something with no mechanical uncertainty.
 - other: anything that doesn't fit the above.
 
-Output exactly this JSON shape: {"type": "attack|skill-check|item-use|move|dialogue|other", "target": "the enemy/NPC/location/door being acted on, or empty string", "skill": "skill name for skill-check, or empty string", "item": "item name for item-use, or empty string", "difficulty": "easy, medium, or hard — your best guess for a skill-check's difficulty, or empty string"}
+Output exactly this JSON shape: {"type": "attack|skill-check|item-use|move|rest|loot|dialogue|other", "target": "the enemy/NPC/location/door/corpse being acted on, or empty string", "skill": "skill name for skill-check, or empty string", "item": "item name for item-use, or empty string", "ability": "the exact name of a known ability/spell from \"Known Abilities/Spells\" below, only if the player is clearly invoking it by name or unmistakable description, or empty string", "difficulty": "easy, medium, or hard — your best guess for a skill-check's difficulty, or empty string"}
 
-Only choose "attack" or "skill-check" against a target when it is actually named under "Enemies & NPCs Here" or clearly present in the scene. If unsure, prefer "dialogue".`
+Only choose "attack" or "skill-check" against a target when it is actually named under "Enemies & NPCs Here" or clearly present in the scene. Only choose "loot" against a target actually named under "Lootable Corpses Here". If unsure, prefer "dialogue".`
 
-export function buildIntentPrompt({ actionText, character, enemiesHere }) {
+function formatAbilityNames(abilities) {
+  return abilities?.length ? abilities.map((a) => a.name).join(', ') : '(none)'
+}
+
+export function buildIntentPrompt({ actionText, character, enemiesHere, lootableHere }) {
   const enemiesText = enemiesHere?.length
     ? enemiesHere.map((e) => `- ${e.data.name} (${e.data.kind ?? 'enemy'}), HP ${e.data.hp}/${e.data.maxHp}`).join('\n')
     : '(none)'
+  const lootableText = lootableHere?.length ? lootableHere.map((e) => `- ${e.data.name}`).join('\n') : '(none)'
 
   return `## Acting Character: ${character.data.name} (${character.data.class})
 Inventory: ${formatInventory(character.data.inventory)}
+Known Abilities/Spells: ${formatAbilityNames(character.data.abilities)}
 
 ## Enemies & NPCs Here
 ${enemiesText}
+
+## Lootable Corpses Here
+${lootableText}
 
 ## Action
 ${character.data.name} says: "${actionText}"

@@ -197,3 +197,59 @@ hp), only combat gates on it.
 
 A scenario needs at least 3-5 enemies/NPCs total, and at least one `kind: boss` tied to the
 climax location named in `story.md`'s Win Conditions.
+
+### Optional: spellcasting, resistances, and saves
+
+Every field below is optional and fails soft when omitted — an enemy with none of them behaves
+exactly as before (a plain weapon attack every turn, no special damage handling). Reach for them
+to make a specific fight more memorable (a spellcasting boss, an ooze that shrugs off blades but
+melts to fire), not on every enemy.
+
+```yaml
+---
+name: Ashfen Shaman
+kind: enemy
+hp: 18
+maxHp: 18
+ac: 12
+attackBonus: 3
+damageDice: 1d6
+saveBonus: 2
+spellUsesRemaining: 3
+resistances:
+  - poison
+vulnerabilities:
+  - radiant
+abilities:
+  - name: Poison Spit
+    resolution: attack
+    damageType: poison
+    damageDice: 1d8
+  - name: Choking Fumes
+    resolution: save
+    saveAbility: con
+    damageType: poison
+    damageDice: 2d6
+locationId: ashfen-camp
+hostile: true
+---
+```
+
+- `abilities`: same shape as a player's spellbook (`server/src/rules/constants.js#CLASS_STARTING_ABILITIES`)
+  — each entry needs `resolution` (`attack` or `save`), `damageDice`, and `damageType` (fire,
+  force, radiant, poison, necrotic, cold, lightning, thunder, acid, or psychic); `save`-resolution
+  entries also need `saveAbility` (str/dex/con/int/wis/cha). Only offensive entries belong here —
+  an enemy never needs non-damage abilities, since it has no player to narrate a buff/heal for.
+  Giving an enemy `abilities` lets its turn pick between casting one and a plain weapon attack
+  (`server/src/engine/actionResolver.js#resolveEnemyTurn`); leave it out for a purely martial enemy.
+- `spellUsesRemaining`: how many times the enemy can cast before it's stuck with weapon attacks for
+  the rest of the fight. Optional even when `abilities` is set — defaults to 2. Pick higher for a
+  boss meant to keep casting, lower for a one-trick minion.
+- `saveBonus`: the flat bonus added to the enemy's own saving throws when a *player's* save-based
+  spell targets it (mirrors `attackBonus`'s role for attack rolls). Only matters if players in this
+  scenario have save-based spells to throw — omit it to default to +0.
+- `resistances` / `vulnerabilities`: arrays of damage types (same list as above), applied whenever
+  this enemy is the one taking damage. A resistant enemy takes half damage (rounded down, minimum
+  1) from that type; a vulnerable one takes double. Applies to both a player's weapon damage
+  (always `physical`) and a player's spell damage of a matching type — it has no effect on damage
+  this enemy deals to players, only damage it receives.

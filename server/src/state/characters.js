@@ -58,6 +58,7 @@ export function listPublicCharacters(gameStateDir) {
     statusEffects: data.statusEffects ?? [],
     abilities: data.abilities ?? [],
     luck: data.luck ?? 0,
+    spellSlots: data.spellSlots ?? {},
   }))
 }
 
@@ -95,6 +96,7 @@ function removeInventoryItem(inventory, name, qty = 1) {
 //   abilities_remove?: string[] (names),
 //   status?: string,
 //   luck?: number (delta, clamped to >= 0),
+//   spellSlots?: { [level]: number } (delta per spell level, clamped to [0, max]),
 //   note?: string,
 // }
 export function applyCharacterUpdate(gameStateDir, name, update) {
@@ -149,6 +151,14 @@ export function applyCharacterUpdate(gameStateDir, name, update) {
   if (typeof update.luck === 'number') {
     nextData.luck = Math.max(0, (nextData.luck ?? 0) + update.luck)
   }
+  if (update.spellSlots && typeof update.spellSlots === 'object') {
+    nextData.spellSlots = { ...(nextData.spellSlots ?? {}) }
+    for (const [level, delta] of Object.entries(update.spellSlots)) {
+      const slot = nextData.spellSlots[level]
+      if (!slot) continue
+      nextData.spellSlots[level] = { ...slot, current: Math.max(0, Math.min(slot.max, slot.current + delta)) }
+    }
+  }
 
   let nextContent = content
   if (update.note) {
@@ -157,5 +167,25 @@ export function applyCharacterUpdate(gameStateDir, name, update) {
   }
 
   writeCharacter(gameStateDir, slug, nextData, nextContent)
+  return true
+}
+
+// Decrements turnsRemaining on every one of this character's statusEffects
+// by 1 (once per their own turn — engine/turnEngine.js), dropping any that
+// hit zero. An effect with no turnsRemaining (null/undefined — a DM-applied
+// effect with no set duration) is left alone indefinitely.
+export function tickStatusEffects(gameStateDir, name) {
+  const slug = slugify(name)
+  if (!characterExists(gameStateDir, slug)) return false
+
+  const { data, content } = readCharacter(gameStateDir, slug)
+  const effects = data.statusEffects ?? []
+  if (!effects.length) return false
+
+  const nextEffects = effects
+    .map((effect) => (typeof effect.turnsRemaining === 'number' ? { ...effect, turnsRemaining: effect.turnsRemaining - 1 } : effect))
+    .filter((effect) => effect.turnsRemaining == null || effect.turnsRemaining > 0)
+
+  writeCharacter(gameStateDir, slug, { ...data, statusEffects: nextEffects }, content)
   return true
 }

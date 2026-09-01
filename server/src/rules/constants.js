@@ -1,5 +1,22 @@
 export const DC_BY_DIFFICULTY = { easy: 10, medium: 15, hard: 20 }
 
+// The only status-effect names with real mechanical weight — matched by
+// name against a character's/enemy's `statusEffects` list (state/
+// characters.js, state/enemies.js). Any other status name, including ones
+// the DM invents freely via characterUpdates, stays purely cosmetic (no
+// entry here = no mechanical effect), same fail-soft convention as the
+// rest of the rules engine. `selfDisadvantage`/`selfBonus` modify the
+// afflicted entity's own rolls; `opponentAdvantage` grants advantage to
+// whoever attacks it; `skipsTurn` (stunned) bypasses action resolution for
+// that entity's turn entirely — see engine/actionResolver.js.
+export const STATUS_EFFECT_MODIFIERS = {
+  poisoned: { selfDisadvantage: true },
+  restrained: { selfDisadvantage: true, opponentAdvantage: true },
+  stunned: { opponentAdvantage: true, skipsTurn: true },
+  frightened: { selfDisadvantage: true },
+  blessed: { selfBonus: 1 },
+}
+
 export const SKILL_ABILITY_MAP = {
   persuasion: 'cha',
   deception: 'cha',
@@ -67,24 +84,30 @@ export const CASTER_CLASSES = new Set(['Bard', 'Cleric', 'Druid', 'Paladin', 'Ra
 // at character creation. Same shape either way — { name, level, description }
 // — stored on the character as `abilities`. For casters, `level` is the
 // spell's own level (0 = cantrip); for non-casters it's a rough power tier.
-// This purely tracks/displays what a character knows — it doesn't add a
-// resolution system (spell slots, mana, etc.); casting or using one in play
-// is just a normal player action like any other.
+// This purely tracks/displays what a character knows by default — it doesn't
+// add a resolution system, so a bare { name, level, description } entry is
+// still just flavor and falls through to a normal player action (this covers
+// every non-caster special move, plus heals/buffs/marks that don't deal
+// direct damage). An offensive spell additionally carries `resolution`
+// ('attack' | 'save'), `damageType`, `damageDice`, and (for 'save') a
+// `saveAbility` — see rules/spells.js — which is what lets
+// actionResolver.js#resolvePlayerIntent resolve it as its own named attack
+// instead of silently falling back to the character's equipped weapon.
 export const CLASS_STARTING_ABILITIES = {
   Barbarian: [
     { name: 'Reckless Attack', level: 1, description: 'Attack with total abandon, trading your own defense for a much likelier hit.' },
     { name: 'Rage', level: 1, description: 'Fly into a battle fury, shrugging off harm and hitting harder for a short time.' },
   ],
   Bard: [
-    { name: 'Vicious Mockery', level: 0, description: 'A cutting insult laced with subtle magic that rattles and weakens a foe.' },
+    { name: 'Vicious Mockery', level: 0, description: 'A cutting insult laced with subtle magic that rattles and weakens a foe.', resolution: 'save', saveAbility: 'wis', damageType: 'psychic', damageDice: '1d4' },
     { name: 'Healing Word', level: 1, description: "A quick, soothing word of magic that mends a nearby ally's wounds." },
   ],
   Cleric: [
-    { name: 'Sacred Flame', level: 0, description: 'Call down a flame-like radiance to sear a foe you can see.' },
+    { name: 'Sacred Flame', level: 0, description: 'Call down a flame-like radiance to sear a foe you can see.', resolution: 'save', saveAbility: 'dex', damageType: 'radiant', damageDice: '1d8' },
     { name: 'Cure Wounds', level: 1, description: 'Channel divine energy through a touch to close a wound.' },
   ],
   Druid: [
-    { name: 'Produce Flame', level: 0, description: 'Conjure a flickering flame in your palm, usable to strike or light the way.' },
+    { name: 'Produce Flame', level: 0, description: 'Conjure a flickering flame in your palm, usable to strike or light the way.', resolution: 'attack', damageType: 'fire', damageDice: '1d8' },
     { name: 'Entangle', level: 1, description: 'Grasping weeds and vines sprout to restrain foes in the area.' },
   ],
   Fighter: [
@@ -108,15 +131,37 @@ export const CLASS_STARTING_ABILITIES = {
     { name: 'Cunning Action', level: 2, description: 'Dash, disengage, or hide in the blink of an eye.' },
   ],
   Sorcerer: [
-    { name: 'Fire Bolt', level: 0, description: 'Hurl a mote of fire that scorches whatever it strikes.' },
-    { name: 'Magic Missile', level: 1, description: 'Loose unerring darts of magical force at a target.' },
+    { name: 'Fire Bolt', level: 0, description: 'Hurl a mote of fire that scorches whatever it strikes.', resolution: 'attack', damageType: 'fire', damageDice: '1d10' },
+    { name: 'Magic Missile', level: 1, description: 'Loose unerring darts of magical force at a target.', resolution: 'attack', damageType: 'force', damageDice: '3d4+3' },
   ],
   Warlock: [
-    { name: 'Eldritch Blast', level: 0, description: "A crackling beam of eldritch energy, the warlock's signature attack." },
+    { name: 'Eldritch Blast', level: 0, description: "A crackling beam of eldritch energy, the warlock's signature attack.", resolution: 'attack', damageType: 'force', damageDice: '1d10' },
     { name: 'Hex', level: 1, description: 'Curse a foe, making your attacks against it bite deeper.' },
   ],
   Wizard: [
-    { name: 'Fire Bolt', level: 0, description: 'Hurl a mote of fire that scorches whatever it strikes.' },
-    { name: 'Magic Missile', level: 1, description: 'Loose unerring darts of magical force at a target.' },
+    { name: 'Fire Bolt', level: 0, description: 'Hurl a mote of fire that scorches whatever it strikes.', resolution: 'attack', damageType: 'fire', damageDice: '1d10' },
+    { name: 'Magic Missile', level: 1, description: 'Loose unerring darts of magical force at a target.', resolution: 'attack', damageType: 'force', damageDice: '3d4+3' },
   ],
+}
+
+// Which ability score a caster's spells key off (attack bonus and save DC
+// both derive from this) — everyone else stays on str/dex like a normal
+// weapon attack.
+export const CASTING_ABILITY_BY_CLASS = {
+  Bard: 'cha',
+  Cleric: 'wis',
+  Druid: 'wis',
+  Paladin: 'cha',
+  Ranger: 'wis',
+  Sorcerer: 'cha',
+  Warlock: 'cha',
+  Wizard: 'int',
+}
+
+// 5e-lite spell slot table, keyed by character level. Characters never level
+// up past 1 today (see state/characters.js), so only that entry is populated
+// — kept level-keyed rather than a flat constant so a future leveling system
+// can extend this table without touching any call site.
+export const SPELL_SLOTS_BY_LEVEL = {
+  1: { 1: 2 },
 }

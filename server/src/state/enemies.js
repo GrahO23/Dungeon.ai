@@ -67,6 +67,9 @@ export function listPublicEnemiesAtLocation(gameStateDir, locationId) {
       hostile: data.hostile !== false,
       status: data.status,
       personality: data.personality,
+      resistances: data.resistances ?? [],
+      vulnerabilities: data.vulnerabilities ?? [],
+      loot: data.loot ?? [],
     }))
 }
 
@@ -77,7 +80,31 @@ export function listPublicEnemiesHere(gameStateDir) {
   return current ? listPublicEnemiesAtLocation(gameStateDir, current.id) : []
 }
 
-// update: { hp?: number (delta), status?: string }
+// Defeated hostile enemies at a location that still hold unclaimed `loot` —
+// the bounded context for a "loot" action (engine/actionResolver.js).
+// Deliberately the opposite gate from listEnemiesAtLocation's
+// hostile-must-be-alive rule: a hostile entry only counts once it's *dead*,
+// since loot is claimed from a corpse, not a living target. Requires
+// `hostile !== false` (not just hp <= 0) so a friendly NPC with no combat
+// stats — hp left unset, per listEnemiesAtLocation's own convention — can
+// never be mistaken for a lootable corpse.
+export function listLootableEnemiesAtLocation(gameStateDir, locationId) {
+  return listEnemies(gameStateDir).filter(
+    (enemy) =>
+      enemy.data.locationId === locationId &&
+      enemy.data.hostile !== false &&
+      (enemy.data.hp ?? 0) <= 0 &&
+      enemy.data.loot?.length,
+  )
+}
+
+// update: {
+//   hp?: number (delta), status?: string, locationId?: string,
+//   spellUsesRemaining?: number (absolute),
+//   statusEffects_add?: { name: string, turnsRemaining?: number|null }[],
+//   statusEffects_remove?: string[] (names),
+//   loot?: string[] (absolute replace — used to clear it once claimed),
+// }
 export function applyEnemyUpdate(gameStateDir, name, update) {
   const slug = slugify(name)
   if (!enemyExists(gameStateDir, slug)) return false
@@ -92,7 +119,46 @@ export function applyEnemyUpdate(gameStateDir, name, update) {
   if (update.status) {
     nextData.status = update.status
   }
+  if (update.locationId) {
+    nextData.locationId = update.locationId
+  }
+  if (typeof update.spellUsesRemaining === 'number') {
+    nextData.spellUsesRemaining = Math.max(0, update.spellUsesRemaining)
+  }
+  if (Array.isArray(update.statusEffects_add) && update.statusEffects_add.length) {
+    const existing = (nextData.statusEffects ?? []).filter(
+      (effect) => !update.statusEffects_add.some((added) => added.name === effect.name),
+    )
+    nextData.statusEffects = [...existing, ...update.statusEffects_add]
+  }
+  if (Array.isArray(update.statusEffects_remove) && update.statusEffects_remove.length) {
+    nextData.statusEffects = (nextData.statusEffects ?? []).filter(
+      (effect) => !update.statusEffects_remove.includes(effect.name),
+    )
+  }
+  if (Array.isArray(update.loot)) {
+    nextData.loot = update.loot
+  }
 
   writeEnemy(gameStateDir, slug, nextData, content)
+  return true
+}
+
+// Mirrors characters.js#tickStatusEffects for enemies — decrements
+// turnsRemaining on this enemy's statusEffects by 1 (once per its own turn
+// — engine/turnEngine.js) and drops any that hit zero.
+export function tickStatusEffects(gameStateDir, name) {
+  const slug = slugify(name)
+  if (!enemyExists(gameStateDir, slug)) return false
+
+  const { data, content } = readEnemy(gameStateDir, slug)
+  const effects = data.statusEffects ?? []
+  if (!effects.length) return false
+
+  const nextEffects = effects
+    .map((effect) => (typeof effect.turnsRemaining === 'number' ? { ...effect, turnsRemaining: effect.turnsRemaining - 1 } : effect))
+    .filter((effect) => effect.turnsRemaining == null || effect.turnsRemaining > 0)
+
+  writeEnemy(gameStateDir, slug, { ...data, statusEffects: nextEffects }, content)
   return true
 }
