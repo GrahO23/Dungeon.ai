@@ -25,3 +25,10 @@ export function rollD20({ advantage = false, disadvantage = false } = {}) {
 export function abilityModifier(score) {
   return Math.floor((score - 10) / 2)
 }
+
+// Standard 4d6-drop-lowest ability score roll.
+export function rollAbilityScore() {
+  const rolls = Array.from({ length: 4 }, () => rollDie(6)).sort((a, b) => a - b)
+  rolls.shift()
+  return rolls.reduce((a, b) => a + b, 0)
+}

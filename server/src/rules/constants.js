@@ -17,6 +17,8 @@ export const STATUS_EFFECT_MODIFIERS = {
   blessed: { selfBonus: 1 },
 }
 
+export const ABILITY_NAMES = ['str', 'dex', 'con', 'int', 'wis', 'cha']
+
 export const SKILL_ABILITY_MAP = {
   persuasion: 'cha',
   deception: 'cha',

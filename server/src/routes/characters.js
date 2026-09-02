@@ -2,13 +2,21 @@ import { Router } from 'express'
 import { characterExists, listPublicCharacters, slugify, writeCharacter } from '../state/characters.js'
 import { generateBackstory } from '../ollama/dm.js'
 import { computeAC } from '../rules/combat.js'
+import { rollAbilityScore } from '../rules/dice.js'
 import {
+  ABILITY_NAMES,
   CLASS_SKILL_BONUS,
   CLASS_STARTING_WEAPON,
   CLASS_STARTING_ABILITIES,
   CASTER_CLASSES,
   SPELL_SLOTS_BY_LEVEL,
 } from '../rules/constants.js'
+
+// A player who skips "Roll for me" submits no stats at all — roll them here
+// so game state never persists an empty ability-score block.
+function rollAbilityScores() {
+  return Object.fromEntries(ABILITY_NAMES.map((name) => [name, rollAbilityScore()]))
+}
 
 // { [spellLevel]: { max, current } }, starting full — non-casters get {}.
 function startingSpellSlots(characterClass, level) {
@@ -54,7 +62,8 @@ export function createCharactersRouter({ gameStateDir, hub }) {
     }
 
     const resolvedClass = characterClass?.trim() || 'Adventurer'
-    const resolvedStats = stats && typeof stats === 'object' ? stats : {}
+    const providedStats = stats && typeof stats === 'object' ? stats : {}
+    const resolvedStats = Object.keys(providedStats).length > 0 ? providedStats : rollAbilityScores()
     const startingWeapon = CLASS_STARTING_WEAPON[resolvedClass]
 
     const data = {
