@@ -1,6 +1,10 @@
 import { config } from '../config.js'
 import { getCurrentModel } from './modelState.js'
-import { isClaudeModel, generate as generateClaude } from '../anthropic/client.js'
+import {
+  isClaudeModel,
+  generate as generateClaude,
+  generateStructured as generateClaudeStructured,
+} from '../anthropic/client.js'
 
 // Single entry point every DM/intent call goes through (ollama/dm.js,
 // ollama/intent.js) — routes to the Anthropic API when the selected model
@@ -23,6 +27,29 @@ export async function generate({ model = getCurrentModel(), system, prompt, opti
 
   const data = await res.json()
   return data.response
+}
+
+// Schema-constrained variant: the response is grammar-constrained (Ollama)
+// or tool-forced (Claude) to structurally match `schema`, so callers get a
+// parsed object back directly instead of having to hope the model wraps its
+// answer in a fenced json block and parse that out of free-form prose.
+export async function generateStructured({ model = getCurrentModel(), system, prompt, schema, options }) {
+  if (isClaudeModel(model)) {
+    return generateClaudeStructured({ model, system, prompt, schema, options })
+  }
+
+  const res = await fetch(`${config.ollamaHost}/api/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, system, prompt, stream: false, options, format: schema }),
+  })
+
+  if (!res.ok) {
+    throw new Error(`Ollama request failed (${res.status}): ${await res.text()}`)
+  }
+
+  const data = await res.json()
+  return JSON.parse(data.response)
 }
 
 export async function listModels() {

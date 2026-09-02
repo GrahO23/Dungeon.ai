@@ -77,7 +77,7 @@ export function createTurnEngine({ gameStateDir, hub, gameState }) {
     // added, so suppress that actor's inventory_add entirely.
     const isLootTurn = resolvedOutcome?.startsWith('Loot:')
     const unclaimedLootNames = new Set(currentLocationLootableEnemies(gameStateDir).flatMap((e) => e.data.loot ?? []))
-    for (const [name, update] of Object.entries(narration.updates?.characterUpdates ?? {})) {
+    for (const { character: name, ...update } of narration.updates?.characterUpdates ?? []) {
       const sanitizedUpdate = Array.isArray(update.inventory_add)
         ? {
             ...update,

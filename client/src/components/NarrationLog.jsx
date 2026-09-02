@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react'
+
 function formatMs(ms) {
   return `${(ms / 1000).toFixed(1)}s`
 }
@@ -14,8 +16,17 @@ function TimingLine({ turn }) {
 }
 
 export function NarrationLog({ turns, pendingAction }) {
+  const containerRef = useRef(null)
+  const lastTurnNumber = turns.length ? turns[turns.length - 1].turnNumber : null
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    el.scrollTop = el.scrollHeight
+  }, [lastTurnNumber, pendingAction])
+
   return (
-    <div className="narration-log">
+    <div className="narration-log" ref={containerRef}>
       {turns.map((turn) => (
         <div key={turn.turnNumber} className="turn-entry">
           {turn.playerText && (

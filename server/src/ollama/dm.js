@@ -1,4 +1,4 @@
-import { generate } from './client.js'
+import { generate, generateStructured } from './client.js'
 import {
   DM_SYSTEM_PROMPT,
   buildTurnPrompt,
@@ -9,6 +9,7 @@ import {
   EVENT_SYSTEM_PROMPT,
   buildEventPrompt,
 } from './prompts.js'
+import { TURN_RESPONSE_SCHEMA, INTRO_RESPONSE_SCHEMA } from './schemas.js'
 import { readStory } from '../state/story.js'
 import { readCharacter, slugify } from '../state/characters.js'
 import { readRecentTurns, parseTurnBlock } from '../state/log.js'
@@ -19,47 +20,15 @@ const RECENT_TURNS_FOR_CONTEXT = 6
 
 // Safety net for the prompt's sentence-count instructions: the model doesn't
 // always honor them, so hard-clip narration server-side rather than let a
-// verbose response reach players and TTS unbounded.
+// verbose response reach players and TTS unbounded. Schema constraints
+// (see schemas.js) guarantee shape, not sentence count, so this still earns
+// its keep even though the response is otherwise structurally guaranteed.
 const MAX_NARRATION_SENTENCES = 4
 
 export function capSentences(text, maxSentences = MAX_NARRATION_SENTENCES) {
   const sentences = text.match(/[^.!?]+[.!?]+(?:\s+|$)/g)
   if (!sentences || sentences.length <= maxSentences) return text.trim()
   return sentences.slice(0, maxSentences).join('').trim()
-}
-
-// Weaker models sometimes echo the "Nearby Locations" context's own
-// "Name [id: some-id]" formatting straight into narration prose instead of
-// emitting a locationUpdate in the JSON block (verified live with
-// qwen3:8b — the model wrote "**Current location:** Break Room Warren
-// [id: break-room]." as if that were the update mechanism, and skipped the
-// JSON block entirely, silently leaving currentLocationId stuck). Strip
-// that leaked tag out of what players see/hear, and salvage the id as a
-// locationUpdate fallback so a move isn't silently lost.
-const LOCATION_TAG_RE = /\**\s*Current location:?\s*\**\s*[^[\n]{0,80}\[id:\s*([a-z0-9-]+)\]\.?/i
-
-function stripLocationTag(text) {
-  const match = text.match(LOCATION_TAG_RE)
-  if (!match) return { text, locationId: null }
-  return { text: text.replace(LOCATION_TAG_RE, '').replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim(), locationId: match[1] }
-}
-
-function parseDmResponse(raw) {
-  const match = raw.match(/```json\s*([\s\S]*?)```\s*$/)
-  const narrationRaw = match ? raw.slice(0, match.index).trim() : raw.trim()
-  const { text: narration, locationId } = stripLocationTag(narrationRaw)
-  const fallbackUpdates = locationId ? { locationUpdate: locationId } : {}
-
-  if (!match) return { narration: capSentences(narration), updates: fallbackUpdates }
-
-  try {
-    const updates = JSON.parse(match[1])
-    if (locationId && !updates.locationUpdate) updates.locationUpdate = locationId
-    return { narration: capSentences(narration), updates }
-  } catch (err) {
-    console.warn('DM response had an unparsable JSON block, ignoring updates:', err.message)
-    return { narration: capSentences(narration || raw.trim()), updates: fallbackUpdates }
-  }
 }
 
 export async function generateTurnResponse({ character, action, gameStateDir, scene, resolvedOutcome }) {
@@ -70,9 +39,17 @@ export async function generateTurnResponse({ character, action, gameStateDir, sc
   const npcsHere = nearby.current ? listEnemiesAtLocation(gameStateDir, nearby.current.id) : []
 
   const prompt = buildTurnPrompt({ story, character: characterSheet, recentTurns, scene, action, nearby, npcsHere, resolvedOutcome })
-  const raw = await generate({ system: DM_SYSTEM_PROMPT, prompt })
+  const result = await generateStructured({ system: DM_SYSTEM_PROMPT, prompt, schema: TURN_RESPONSE_SCHEMA })
 
-  return parseDmResponse(raw)
+  return {
+    narration: capSentences(result.narration ?? ''),
+    updates: {
+      characterUpdates: result.characterUpdates ?? [],
+      sceneUpdate: result.sceneUpdate,
+      locationUpdate: result.locationUpdate,
+      storyNote: result.storyNote,
+    },
+  }
 }
 
 const EVENT_MAX_SENTENCES = 3
@@ -92,34 +69,64 @@ const INTRO_MAX_ATTEMPTS = 2
 // it a generous output budget to avoid truncation.
 const INTRO_OPTIONS = { num_predict: 2200 }
 
+// Always-shaped default so callers (routes/setup.js#resolveMap in
+// particular) never have to guard against generateGameIntro returning
+// undefined — even if every attempt below throws (e.g. Ollama unreachable).
+const EMPTY_INTRO_RESULT = {
+  narration: '',
+  title: '',
+  setting: '',
+  factions: [],
+  premise: '',
+  mainQuest: '',
+  plan: [],
+  locations: [],
+  startLocationId: '',
+  scene: '',
+  npcs: [],
+}
+
 export async function generateGameIntro({ characters }) {
   const prompt = buildIntroPrompt(characters)
-  let result
+  let result = EMPTY_INTRO_RESULT
 
   for (let attempt = 1; attempt <= INTRO_MAX_ATTEMPTS; attempt++) {
-    const raw = await generate({ system: INTRO_SYSTEM_PROMPT, prompt, options: INTRO_OPTIONS })
-    const { narration, updates } = parseDmResponse(raw)
+    try {
+      const updates = await generateStructured({
+        system: INTRO_SYSTEM_PROMPT,
+        prompt,
+        schema: INTRO_RESPONSE_SCHEMA,
+        options: INTRO_OPTIONS,
+      })
 
-    result = {
-      narration,
-      title: updates.title || '',
-      setting: updates.setting || '',
-      factions: Array.isArray(updates.factions) ? updates.factions : [],
-      premise: updates.premise || '',
-      mainQuest: updates.mainQuest || '',
-      plan: Array.isArray(updates.plan) ? updates.plan : [],
-      locations: Array.isArray(updates.locations) ? updates.locations : [],
-      startLocationId: updates.startLocationId || '',
-      scene: updates.scene || '',
-      npcs: Array.isArray(updates.npcs) ? updates.npcs : [],
+      result = {
+        narration: capSentences(updates.narration ?? ''),
+        title: updates.title || '',
+        setting: updates.setting || '',
+        factions: Array.isArray(updates.factions) ? updates.factions : [],
+        premise: updates.premise || '',
+        mainQuest: updates.mainQuest || '',
+        plan: Array.isArray(updates.plan) ? updates.plan : [],
+        locations: Array.isArray(updates.locations) ? updates.locations : [],
+        startLocationId: updates.startLocationId || '',
+        scene: updates.scene || '',
+        npcs: Array.isArray(updates.npcs) ? updates.npcs : [],
+      }
+
+      const isComplete = result.locations.length > 0 && result.premise && result.scene
+      if (isComplete) return result
+
+      console.warn(
+        `generateGameIntro attempt ${attempt} produced incomplete data${attempt < INTRO_MAX_ATTEMPTS ? ', retrying' : ', giving up and using the partial result'}.`,
+      )
+    } catch (err) {
+      // A schema-constrained response can still come back truncated if the
+      // model hits num_predict mid-object — that surfaces here as a thrown
+      // JSON-parse error rather than silently-incomplete fields. Treat it
+      // exactly like an incomplete attempt: retry, or give up with whatever
+      // the last successful attempt (if any) produced.
+      console.warn(`generateGameIntro attempt ${attempt} failed to parse: ${err.message}`)
     }
-
-    const isComplete = result.locations.length > 0 && result.premise && result.scene
-    if (isComplete) return result
-
-    console.warn(
-      `generateGameIntro attempt ${attempt} produced incomplete data${attempt < INTRO_MAX_ATTEMPTS ? ', retrying' : ', giving up and using the partial result'}.`,
-    )
   }
 
   return result

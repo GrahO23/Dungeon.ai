@@ -54,3 +54,29 @@ export async function generate({ model, system, prompt, options }) {
   const textBlock = res.content.find((block) => block.type === 'text')
   return textBlock?.text ?? ''
 }
+
+// The Messages API has no bare "format: json" mode the way Ollama does —
+// the standard way to get schema-guaranteed output is forcing a tool call:
+// define one tool whose input_schema is the schema we want, force the model
+// to call it, and read its already-parsed input back directly. Unlike
+// Ollama's grammar-constrained decoding this isn't independently verified
+// live here (no ANTHROPIC_API_KEY configured in this environment) — it
+// follows Anthropic's documented tool-forcing contract, but should get a
+// manual smoke test whenever a key is set up.
+const STRUCTURED_TOOL_NAME = 'submit_response'
+
+export async function generateStructured({ model, system, prompt, schema, options }) {
+  const anthropicModel = model.slice(PREFIX.length)
+  const res = await getClient().messages.create({
+    model: anthropicModel,
+    max_tokens: options?.num_predict ?? DEFAULT_MAX_TOKENS,
+    system,
+    messages: [{ role: 'user', content: prompt }],
+    tools: [{ name: STRUCTURED_TOOL_NAME, description: 'Submit the structured game response.', input_schema: schema }],
+    tool_choice: { type: 'tool', name: STRUCTURED_TOOL_NAME },
+  })
+
+  const toolUse = res.content.find((block) => block.type === 'tool_use')
+  if (!toolUse) throw new Error('Claude did not return a structured tool response')
+  return toolUse.input
+}
