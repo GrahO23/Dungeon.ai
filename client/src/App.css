@@ -530,6 +530,15 @@ select {
   );
 }
 
+.scene-location-name {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #a89158;
+}
+
 .scene {
   margin: 0;
   font-style: italic;
@@ -585,6 +594,15 @@ select {
 
 .player-line strong {
   color: var(--accent);
+}
+
+.turn-entry-pending {
+  opacity: 0.6;
+}
+
+.player-line-pending {
+  margin-bottom: 0;
+  font-style: italic;
 }
 
 .roll-line {

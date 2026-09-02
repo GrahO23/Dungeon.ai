@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { readMarkdown, writeMarkdown } from '../state/markdown.js'
+import { getSection } from '../state/sections.js'
 
 const FILE = 'state.md'
 
@@ -19,7 +20,11 @@ export function createGameState(gameStateDir) {
   function load() {
     const parsed = readMarkdown(filePath, { data: { ...DEFAULTS }, content: '' })
     data = { ...DEFAULTS, ...parsed.data }
-    scene = parsed.content
+    // Read back just the section body, not the raw file content — persist()
+    // always writes a "## Current Scene" header, and taking the whole body
+    // verbatim here would bake that header into `scene` itself, duplicating
+    // it on every subsequent persist() (compounding on every restart).
+    scene = getSection(parsed.content, 'Current Scene') || parsed.content
     return get()
   }
 

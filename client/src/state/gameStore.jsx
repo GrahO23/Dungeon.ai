@@ -16,6 +16,7 @@ const initialState = {
   turnNumber: 0,
   currentScene: '',
   recentTurns: [],
+  pendingAction: null,
   thinking: false,
   starting: false,
   lastError: null,
@@ -37,7 +38,10 @@ function reducer(state, action) {
     case 'disconnected':
       return { ...state, connected: false }
     case 'sync':
-      return { ...state, ...action.payload, thinking: false }
+      return { ...state, ...action.payload, thinking: false, pendingAction: null }
+    case 'action:pending':
+    case 'action:submitted':
+      return { ...state, pendingAction: action.payload }
     case 'roster:updated':
       return { ...state, characters: action.payload.characters }
     case 'setup:started':
@@ -49,17 +53,18 @@ function reducer(state, action) {
     case 'turn:thinking':
       return { ...state, thinking: true }
     case 'turn:changed':
-      return { ...state, currentTurnIndex: action.payload.currentTurnIndex, thinking: false }
+      return { ...state, currentTurnIndex: action.payload.currentTurnIndex, thinking: false, pendingAction: null }
     case 'narration:new':
       return {
         ...state,
         turnNumber: action.payload.turnNumber,
         recentTurns: [...state.recentTurns, action.payload].slice(-8),
         thinking: false,
+        pendingAction: null,
       }
     case 'error':
     case 'error:not-your-turn':
-      return { ...state, lastError: action.payload.reason, thinking: false }
+      return { ...state, lastError: action.payload.reason, thinking: false, pendingAction: null }
     case 'claim':
       return { ...state, myCharacter: action.payload }
     case 'toggleVoice':
@@ -145,6 +150,7 @@ export function GameProvider({ children }) {
     (text) => {
       const ws = wsRef.current
       if (!ws || ws.readyState !== ws.OPEN || !state.myCharacter) return
+      dispatch({ type: 'action:pending', payload: { character: state.myCharacter, text } })
       ws.send(JSON.stringify({ type: 'player:action', payload: { character: state.myCharacter, text } }))
     },
     [state.myCharacter],

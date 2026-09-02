@@ -28,16 +28,37 @@ export function capSentences(text, maxSentences = MAX_NARRATION_SENTENCES) {
   return sentences.slice(0, maxSentences).join('').trim()
 }
 
+// Weaker models sometimes echo the "Nearby Locations" context's own
+// "Name [id: some-id]" formatting straight into narration prose instead of
+// emitting a locationUpdate in the JSON block (verified live with
+// qwen3:8b — the model wrote "**Current location:** Break Room Warren
+// [id: break-room]." as if that were the update mechanism, and skipped the
+// JSON block entirely, silently leaving currentLocationId stuck). Strip
+// that leaked tag out of what players see/hear, and salvage the id as a
+// locationUpdate fallback so a move isn't silently lost.
+const LOCATION_TAG_RE = /\**\s*Current location:?\s*\**\s*[^[\n]{0,80}\[id:\s*([a-z0-9-]+)\]\.?/i
+
+function stripLocationTag(text) {
+  const match = text.match(LOCATION_TAG_RE)
+  if (!match) return { text, locationId: null }
+  return { text: text.replace(LOCATION_TAG_RE, '').replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim(), locationId: match[1] }
+}
+
 function parseDmResponse(raw) {
   const match = raw.match(/```json\s*([\s\S]*?)```\s*$/)
-  if (!match) return { narration: capSentences(raw.trim()), updates: {} }
+  const narrationRaw = match ? raw.slice(0, match.index).trim() : raw.trim()
+  const { text: narration, locationId } = stripLocationTag(narrationRaw)
+  const fallbackUpdates = locationId ? { locationUpdate: locationId } : {}
 
-  const narration = raw.slice(0, match.index).trim()
+  if (!match) return { narration: capSentences(narration), updates: fallbackUpdates }
+
   try {
-    return { narration: capSentences(narration), updates: JSON.parse(match[1]) }
+    const updates = JSON.parse(match[1])
+    if (locationId && !updates.locationUpdate) updates.locationUpdate = locationId
+    return { narration: capSentences(narration), updates }
   } catch (err) {
     console.warn('DM response had an unparsable JSON block, ignoring updates:', err.message)
-    return { narration: capSentences(narration || raw.trim()), updates: {} }
+    return { narration: capSentences(narration || raw.trim()), updates: fallbackUpdates }
   }
 }
 

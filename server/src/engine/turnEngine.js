@@ -190,6 +190,10 @@ export function createTurnEngine({ gameStateDir, hub, gameState }) {
     processing = true
     const turnStartedAt = Date.now()
     try {
+      // Echo the raw command to every connected client right away, so the
+      // rest of the party sees what was typed immediately instead of
+      // waiting 10+ seconds for the DM's narration to relay it back.
+      hub.broadcast('action:submitted', { character, text })
       // Broadcast before the intent-classification call (itself a separate,
       // smaller LLM call — see ollama/intent.js) so players see "the DM is
       // thinking" immediately, not just once narration generation starts.

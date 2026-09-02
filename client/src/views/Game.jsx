@@ -17,6 +17,7 @@ export function Game() {
     currentTurnIndex,
     currentScene,
     recentTurns,
+    pendingAction,
     thinking,
     lastError,
     myCharacter,
@@ -34,6 +35,7 @@ export function Game() {
   const isMyTurn = myCharacter === currentCharacter && !thinking
   const myCharacterSheet = characters.find((c) => c.name === myCharacter)
   const otherCharacters = characters.filter((c) => c.name !== myCharacter)
+  const currentLocation = map.visited.find((loc) => loc.id === map.currentLocationId)
 
   return (
     <div className="app-shell-inner">
@@ -78,12 +80,19 @@ export function Game() {
         <div className="game-layout">
           <div className="game-main">
             <div className="scene-banner">
-              <p className="scene">{currentScene}</p>
+              {currentLocation ? (
+                <>
+                  <p className="scene-location-name">{currentLocation.name}</p>
+                  <p className="scene">{currentLocation.description}</p>
+                </>
+              ) : (
+                <p className="scene">{currentScene}</p>
+              )}
             </div>
 
             <TurnBanner currentCharacter={currentCharacter} myCharacter={myCharacter} thinking={thinking} />
 
-            <NarrationLog turns={recentTurns} />
+            <NarrationLog turns={recentTurns} pendingAction={pendingAction} />
 
             {lastError && <p className="error">{lastError}</p>}
 

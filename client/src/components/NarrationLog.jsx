@@ -13,7 +13,7 @@ function TimingLine({ turn }) {
   )
 }
 
-export function NarrationLog({ turns }) {
+export function NarrationLog({ turns, pendingAction }) {
   return (
     <div className="narration-log">
       {turns.map((turn) => (
@@ -28,6 +28,13 @@ export function NarrationLog({ turns }) {
           <TimingLine turn={turn} />
         </div>
       ))}
+      {pendingAction && (
+        <div className="turn-entry turn-entry-pending">
+          <p className="player-line player-line-pending">
+            <strong>{pendingAction.character}:</strong> {pendingAction.text}
+          </p>
+        </div>
+      )}
     </div>
   )
 }
